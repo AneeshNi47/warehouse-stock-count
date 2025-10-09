@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSV STOCK COUNT - Insights Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-bold mb-2 text-blue-900">DSV STOCK COUNT - Insights Dashboard</h1>
+        <p class="text-gray-600">Manager-only analytics and progress monitoring</p>
+        <div class="mt-4 p-3 bg-blue-50 rounded-lg inline-block">
+          <span class="font-medium text-blue-900">
+            Logged in as: {{ current_user.username }}
+          </span>
+          <a href="{{ url_for('auth.logout') }}" class="ml-3 text-sm underline text-blue-900 hover:text-red-600">
+            Sign Out
+          </a>
+        </div>
+      </div>
+      <div class="text-right">
+        <a href="{{ url_for('manager.dashboard') }}"
+          class="text-white py-2 px-4 rounded-lg transition duration-200 bg-blue-900 hover:bg-blue-800">
+          Manager Users
+        </a>
+        <button id="refreshData"
+          class="ml-2 text-white py-2 px-4 rounded-lg transition duration-200 bg-blue-900 hover:bg-blue-800">
+          🔄 Refresh Data
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8 border-t-4 border-blue-900">
+      <h3 class="text-lg font-semibold mb-4 text-blue-900">Filter Insights</h3>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium mb-2 text-blue-900">Location</label>
+          <select id="filterLocation" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
+            <option value="">All Locations</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2 text-blue-900">Warehouse</label>
+          <select id="filterWarehouse" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
+            <option value="">All Warehouses</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2 text-blue-900">Counter</label>
+          <select id="filterCounter" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
+            <option value="">All Counters</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2 text-blue-900">Team Leader</label>
+          <select id="filterTL" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
+            <option value="">All TLs</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-4">
+        <button id="clearFilters"
+          class="py-2 px-6 rounded-lg border-2 border-blue-900 text-blue-900 font-medium hover:bg-blue-50">
+          Clear Filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-sm font-medium text-gray-500">Total Lines</h3>
+        <p id="totalLines" class="text-3xl font-bold text-blue-900">-</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-sm font-medium text-gray-500">Active Jobs</h3>
+        <p id="activeJobs" class="text-3xl font-bold text-blue-600">-</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-sm font-medium text-gray-500">Completed Jobs</h3>
+        <p id="completedJobs" class="text-3xl font-bold text-blue-900">-</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-sm font-medium text-gray-500">Total Scans</h3>
+        <p id="totalScans" class="text-3xl font-bold text-blue-600">-</p>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold mb-4">Progress by Location</h3>
+        <canvas id="locationChart" width="400" height="200"></canvas>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold mb-4">Progress by Warehouse</h3>
+        <canvas id="warehouseChart" width="400" height="200"></canvas>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold mb-4">Job Status Distribution</h3>
+        <canvas id="statusChart" width="400" height="200"></canvas>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold mb-4">Top Counters by Scans</h3>
+        <canvas id="counterChart" width="400" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg hidden z-50">
+    <span id="toastMessage"></span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    let locationChart, warehouseChart, statusChart, counterChart;
+
+    function showToast(msg, type = "error") {
+      const toast = document.getElementById("toast");
+      const msgBox = document.getElementById("toastMessage");
+      msgBox.textContent = msg;
+      toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+        type === "error" ? "bg-red-500" : "bg-green-500"
+      } text-white`;
+      toast.classList.remove("hidden");
+      setTimeout(() => toast.classList.add("hidden"), 3000);
+    }
+
+    async function loadInsights() {
+      try {
+        const res = await fetch("/api/insights/dashboard");
+        const data = await res.json();
+
+        document.getElementById("totalLines").textContent = data.totalLines;
+        document.getElementById("activeJobs").textContent = data.activeJobs;
+        document.getElementById("completedJobs").textContent = data.completedJobs;
+        document.getElementById("totalScans").textContent = data.totalScans;
+
+        renderCharts(data);
+      } catch (err) {
+        console.error(err);
+        showToast("Failed to load data");
+      }
+    }
+
+    function renderCharts(data) {
+      const ctx1 = document.getElementById("locationChart");
+      const ctx2 = document.getElementById("warehouseChart");
+      const ctx3 = document.getElementById("statusChart");
+      const ctx4 = document.getElementById("counterChart");
+
+      if (locationChart) locationChart.destroy();
+      if (warehouseChart) warehouseChart.destroy();
+      if (statusChart) statusChart.destroy();
+      if (counterChart) counterChart.destroy();
+
+      locationChart = new Chart(ctx1, {
+        type: "bar",
+        data: {
+          labels: data.locations || [],
+          datasets: [{ label: "Scans", data: data.locationScans || [], backgroundColor: "#002664" }],
+        },
+      });
+
+      warehouseChart = new Chart(ctx2, {
+        type: "bar",
+        data: {
+          labels: data.warehouses || [],
+          datasets: [{ label: "Jobs", data: data.warehouseJobs || [], backgroundColor: "#4B87E0" }],
+        },
+      });
+
+      statusChart = new Chart(ctx3, {
+        type: "doughnut",
+        data: {
+          labels: ["Active", "Completed", "Pending"],
+          datasets: [{ data: [data.activeJobs, data.completedJobs, data.totalLines - data.completedJobs], backgroundColor: ["#4B87E0", "#002664", "#94a3b8"] }],
+        },
+      });
+
+      counterChart = new Chart(ctx4, {
+        type: "bar",
+        data: {
+          labels: data.topCounters?.map((c) => c.name) || [],
+          datasets: [{ label: "Total Scans", data: data.topCounters?.map((c) => c.scans) || [], backgroundColor: "#002664" }],
+        },
+      });
+    }
+
+    document.getElementById("refreshData").addEventListener("click", loadInsights);
+    document.addEventListener("DOMContentLoaded", loadInsights);
+  </script>
+</body>
+</html>

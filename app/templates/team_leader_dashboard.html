@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team Leader Dashboard - DSV Stock Count</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold text-blue-900 mb-2">DSV STOCK COUNT</h1>
+      <p class="text-gray-600">Line-Based Stock Count System</p>
+
+      <div class="mt-4 p-3 bg-blue-50 rounded-lg inline-block">
+        <span class="text-blue-800 font-medium">Logged in as: {{ current_user.username }}</span>
+        <a href="{{ url_for('auth.logout') }}" class="ml-3 text-blue-600 hover:text-blue-800 text-sm underline">
+          Sign Out
+        </a>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex justify-center mb-6">
+      <button id="tabMyLines"
+              class="tab-btn bg-blue-600 text-white px-6 py-2 rounded-l-lg font-medium">
+        My Scan Lines
+      </button>
+      <button id="tabOtherLines"
+              class="tab-btn bg-gray-200 text-gray-700 px-6 py-2 rounded-r-lg font-medium">
+        Others' Scan Lines
+      </button>
+    </div>
+<!-- Export Settings -->
+<div class="bg-white shadow-md rounded-lg p-6 mb-8 border border-gray-200">
+  <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+    <i class="fa fa-file-excel text-green-600 mr-2"></i> Export Settings
+  </h2>
+
+  <form id="exportForm" method="POST" action="{{ url_for('team_leader.export_custom') }}">
+    <!-- Location Selector -->
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Select Locations</label>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="selectAllLocations" class="form-checkbox text-blue-600" />
+          <span class="text-sm font-medium text-gray-700">Select All</span>
+        </label>
+        {% for location in locations %}
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" name="location_ids" value="{{ location.id }}" class="form-checkbox locationCheckbox text-blue-600" />
+          <span class="text-sm text-gray-800">{{ location.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+<!-- Status Selector -->
+<div class="mb-4">
+  <label class="block text-sm font-medium text-gray-700 mb-1">Select Status</label>
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+    <label class="flex items-center space-x-2">
+      <input type="checkbox" id="selectAllStatus" class="form-checkbox text-blue-600" />
+      <span class="text-sm font-medium text-gray-700">Select All</span>
+    </label>
+    {% for status in statuses %}
+    <label class="flex items-center space-x-2">
+      <input type="checkbox" name="status_list" value="{{ status }}" class="form-checkbox statusCheckbox text-blue-600" />
+      <span class="text-sm text-gray-800">{{ status }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+    <!-- Warehouse Selector -->
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Select Warehouses</label>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="selectAllWarehouses" class="form-checkbox text-blue-600" />
+          <span class="text-sm font-medium text-gray-700">Select All</span>
+        </label>
+        {% for warehouse in warehouses %}
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" name="warehouse_ids" value="{{ warehouse.id }}" class="form-checkbox warehouseCheckbox text-blue-600" />
+          <span class="text-sm text-gray-800">{{ warehouse.warehouse_name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+
+    <!-- Export Button -->
+    <div class="text-right">
+      <button type="submit"
+              class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium shadow-md">
+        <i class="fa fa-file-excel mr-2"></i> Export to Excel
+      </button>
+    </div>
+  </form>
+</div>
+    <!-- Filters -->
+    <div class="bg-white shadow-md rounded-lg p-4 mb-6 flex flex-col md:flex-row md:items-center gap-4">
+      <div>
+        <select id="filterLocation"
+                class="w-full border rounded p-2">
+          <option value="">All Locations</option>
+          {% for location in locations %}
+          <option value="{{ location.id }}">{{ location.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <select id="filterWarehouse"
+                class="w-full border rounded p-2">
+          <option value="">All Warehouses</option>
+          {% for warehouse in warehouses %}
+          <option value="{{ warehouse.id }}">{{ warehouse.warehouse_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button id="clearFilters"
+              class="bg-blue-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg mt-5 md:mt-0">
+        Apply
+      </button>
+      <button id="clearFilters"
+              class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg mt-5 md:mt-0">
+        Clear
+      </button>
+      <div class="flex-grow"></div>
+      <button id="btnNewScanLine"
+              class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium mt-5 md:mt-0">
+        + New Scan Line
+      </button>
+    </div>
+
+
+    <!-- Scan Line Tables -->
+<div id="myLinesTable" class="tab-content">
+  <h2 class="text-lg font-semibold mb-3">My Scan Lines</h2>
+  <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+    <table class="w-full border border-gray-300">
+      <thead class="bg-gray-100">
+        <tr class="border-b border-gray-300">
+          <th class="p-2 text-left">Line Code</th>
+          <th class="p-2 text-left">Location</th>
+          <th class="p-2 text-left">Warehouse</th>
+          <th class="p-2 text-left">Target Count</th>
+          <th class="p-2 text-left">Current Count</th>
+          <th class="p-2 text-left">Status</th>
+          <th class="p-2 text-left">Counters</th>
+          <th class="p-2 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in my_lines %}
+        <tr class="hover:bg-gray-50 cursor-pointer border-b border-gray-200" onclick="toggleAccordion('{{ line.id }}')">
+          <td class="p-2">{{ line.line_code }}</td>
+          <td class="p-2">{{ line.location.name }}</td>
+          <td class="p-2">{{ line.warehouse.warehouse_name }}</td>
+          <td class="p-2">{{ line.target_count }}</td>
+          <td class="p-2">{{ line.current_count }}</td>
+          <td class="p-2">
+            {% if line.status %}
+              <span class="px-2 py-1 rounded text-xs font-medium 
+                {% if 'Variation' in line.status %} bg-yellow-100 text-yellow-800 
+                {% elif line.status == 'Completed' %} bg-green-100 text-green-800 
+                {% else %} bg-blue-100 text-blue-800 {% endif %}">
+                {{ line.status }}
+              </span>
+            {% else %}
+              <span class="text-gray-500">Pending</span>
+            {% endif %}
+          </td>
+          <td class="p-2">
+            {{ line.counter_1.username if line.counter_1 }}{% if line.counter_2 %}, {{ line.counter_2.username }}{% endif %}
+          </td>
+          <td class="p-2 text-blue-600">
+            <a href="{{ url_for('team_leader.view_scan_line', id=line.id) }}" class="hover:underline text-blue-600">View</a> |
+            <a href="{{ url_for('team_leader.edit_scan_line', id=line.id) }}" class="hover:underline text-green-600">Edit</a> |
+            <a href="{{ url_for('team_leader.delete_scan_line', id=line.id) }}" class="hover:underline text-red-600"
+               onclick="return confirm('Delete this scan line?');">Delete</a>
+          </td>
+        </tr>
+
+        <!-- Accordion row -->
+        <tr id="accordion-{{ line.id }}" class="hidden bg-gray-50 border-b border-gray-300">
+          <td colspan="7" class="p-4">
+            <h4 class="font-semibold text-gray-700 mb-2">Scan Records</h4>
+            {% if line.scan_records %}
+            <div class="overflow-x-auto">
+              <table class="min-w-full border border-gray-200 text-sm">
+                <thead class="bg-gray-100 text-gray-700">
+                  <tr>
+                    <th class="p-2 border">#</th>
+                    <th class="p-2 border">Barcodes</th>
+                    <th class="p-2 border">Counter</th>
+                    <th class="p-2 border">Date / Time</th>
+                    <th class="p-2 border text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for record in line.scan_records %}
+                  <tr class="hover:bg-white border-b border-gray-200">
+                    <td class="p-2 border">{{ loop.index }}</td>
+                    <td class="p-2 border whitespace-pre-line">
+                      {{ record.barcode_1 or '' }}{% if record.barcode_2 %}\n{{ record.barcode_2 }}{% endif %}{% if record.barcode_3 %}\n{{ record.barcode_3 }}{% endif %}
+                    </td>
+                    <td class="p-2 border">{{ record.counter_user.username }}</td>
+                    <td class="p-2 border">{{ record.created_on.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td class="p-2 border text-center space-x-2">
+                      <button
+                        onclick="openRecordModal(
+                          '{{ record.barcode_1 or '' }}',
+                          '{{ record.barcode_2 or '' }}',
+                          '{{ record.barcode_3 or '' }}',
+                          '{{ record.created_on.strftime('%Y-%m-%d %H:%M:%S') }}',
+                          '{{ record.image_url or '' }}'
+                        )"
+                        class="btn btn-primary px-2 py-1 text-sm">
+                        <i class="fa fa-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+              <p class="text-gray-500 italic">No scan records found for this line.</p>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="p-4 text-center text-gray-500">No scan lines created yet</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+    <div id="otherLinesTable" class="tab-content hidden">
+      <h2 class="text-lg font-semibold mb-3">Other Scan Lines</h2>
+      <div class="overflow-x-auto bg-white shadow-md rounded-lg">
+        <table class="w-full border border-gray-200">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="p-2 text-left">Line Code</th>
+              <th class="p-2 text-left">Location</th>
+              <th class="p-2 text-left">Warehouse</th>
+              <th class="p-2 text-left">Team Leader</th>
+              <th class="p-2 text-left">Target Count</th>
+              <th class="p-2 text-left">View</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in other_lines %}
+            <tr class="hover:bg-gray-50">
+              <td class="p-2">{{ line.line_code }}</td>
+              <td class="p-2">{{ line.location.name }}</td>
+              <td class="p-2">{{ line.warehouse.warehouse_name }}</td>
+              <td class="p-2">{{ line.team_leader_user.username }}</td>
+              <td class="p-2">{{ line.target_count }}</td>
+              <td class="p-2">
+                <a href="{{ url_for('team_leader.view_scan_line', id=line.id) }}" class="text-blue-600 hover:underline">View</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="p-4 text-center text-gray-500">No other lines available</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Scan Line Modal -->
+  <div id="scanLineModal"
+       class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
+      <button id="closeModal"
+              class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">✕</button>
+      <h2 class="text-xl font-semibold mb-4 text-gray-800">Create New Scan Line</h2>
+      <form id="newScanLineForm" method="POST" action="{{ url_for('team_leader.create_scan_line') }}">
+        <div class="mb-3">
+          <label class="block text-sm font-medium mb-1">Location</label>
+          <select name="location_id" class="w-full border rounded p-2" required>
+            {% for location in locations %}
+            <option value="{{ location.id }}">{{ location.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium mb-1">Warehouse</label>
+          <select name="warehouse_id" class="w-full border rounded p-2" required>
+            {% for warehouse in warehouses %}
+            <option value="{{ warehouse.id }}">{{ warehouse.warehouse_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium mb-1">Target Count</label>
+          <input type="number" name="target_count" class="w-full border rounded p-2" min="0" required />
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium mb-1">Counter 1</label>
+          <select name="counter_1_id" class="w-full border rounded p-2">
+            {% for user in counters %}
+            <option value="{{ user.id }}">{{ user.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium mb-1">Counter 2</label>
+          <select name="counter_2_id" class="w-full border rounded p-2">
+            {% for user in counters %}
+            <option value="{{ user.id }}">{{ user.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="text-right mt-4">
+          <button type="submit"
+                  class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            Create
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+  // Parse warehouse data from backend (we’ll expose it in template)
+  const allWarehouses = {{ warehouses|tojson | safe }};
+  const filterLocationSelect = document.getElementById('filterLocation');
+  const filterWarehouseSelect = document.getElementById('filterWarehouse');
+
+  function toggleAccordion(lineId) {
+  const section = document.getElementById(`accordion-${lineId}`);
+  if (section.classList.contains('hidden')) {
+    section.classList.remove('hidden');
+  } else {
+    section.classList.add('hidden');
+  }
+}
+
+  filterLocationSelect.addEventListener('change', function () {
+    const selectedLocationId = this.value;
+    filterWarehouseSelect.innerHTML = '<option value="">All Warehouses</option>';
+
+    allWarehouses.forEach(wh => {
+      if (!selectedLocationId || wh.location_id === parseInt(selectedLocationId)) {
+        const opt = document.createElement('option');
+        opt.value = wh.id;
+        opt.textContent = wh.warehouse_name;
+        filterWarehouseSelect.appendChild(opt);
+      }
+    });
+  });
+
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    filterLocationSelect.value = '';
+    filterWarehouseSelect.innerHTML = '<option value="">All Warehouses</option>';
+  });
+
+  // === Modal dependent dropdown ===
+  const modal = document.getElementById('scanLineModal');
+  const openBtn = document.getElementById('btnNewScanLine');
+  const closeBtn = document.getElementById('closeModal');
+  const modalLocation = modal.querySelector('select[name="location_id"]');
+  const modalWarehouse = modal.querySelector('select[name="warehouse_id"]');
+
+  openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+  closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+  modalLocation.addEventListener('change', function () {
+    const selectedLocationId = this.value;
+    modalWarehouse.innerHTML = '';
+
+    allWarehouses.forEach(wh => {
+      if (wh.location_id === parseInt(selectedLocationId)) {
+        const opt = document.createElement('option');
+        opt.value = wh.id;
+        opt.textContent = wh.warehouse_name;
+        modalWarehouse.appendChild(opt);
+      }
+    });
+  });
+</script>
+<script>
+// === Tab switching logic ===
+const tabMyLines = document.getElementById('tabMyLines');
+const tabOtherLines = document.getElementById('tabOtherLines');
+const myLinesTable = document.getElementById('myLinesTable');
+const otherLinesTable = document.getElementById('otherLinesTable');
+
+// Helper to switch tabs
+function activateTab(tab) {
+  if (tab === 'my') {
+    tabMyLines.classList.add('bg-blue-600', 'text-white');
+    tabMyLines.classList.remove('bg-gray-200', 'text-gray-700');
+    tabOtherLines.classList.remove('bg-blue-600', 'text-white');
+    tabOtherLines.classList.add('bg-gray-200', 'text-gray-700');
+
+    myLinesTable.classList.remove('hidden');
+    otherLinesTable.classList.add('hidden');
+  } else {
+    tabOtherLines.classList.add('bg-blue-600', 'text-white');
+    tabOtherLines.classList.remove('bg-gray-200', 'text-gray-700');
+    tabMyLines.classList.remove('bg-blue-600', 'text-white');
+    tabMyLines.classList.add('bg-gray-200', 'text-gray-700');
+
+    otherLinesTable.classList.remove('hidden');
+    myLinesTable.classList.add('hidden');
+  }
+}
+
+tabMyLines.addEventListener('click', () => activateTab('my'));
+tabOtherLines.addEventListener('click', () => activateTab('other'));
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const selectAllLocations = document.getElementById("selectAllLocations");
+  const selectAllWarehouses = document.getElementById("selectAllWarehouses");
+  const selectAllStatus = document.getElementById("selectAllStatus");
+  const locationCheckboxes = document.querySelectorAll(".locationCheckbox");
+  const warehouseCheckboxes = document.querySelectorAll(".warehouseCheckbox");
+  const statusCheckboxes = document.querySelectorAll(".statusCheckbox");
+  const exportForm = document.getElementById("exportForm");
+
+  // Select all locations
+  if (selectAllLocations) {
+    selectAllLocations.addEventListener("change", () => {
+      locationCheckboxes.forEach(cb => cb.checked = selectAllLocations.checked);
+    });
+  }
+
+  // Select all warehouses
+  if (selectAllWarehouses) {
+    selectAllWarehouses.addEventListener("change", () => {
+      warehouseCheckboxes.forEach(cb => cb.checked = selectAllWarehouses.checked);
+    });
+  }
+
+  if (selectAllStatus) {
+    selectAllStatus.addEventListener("change", () => {
+      statusCheckboxes.forEach(cb => cb.checked = selectAllStatus.checked);
+    });
+  }
+
+  // Validation
+  exportForm.addEventListener("submit", (e) => {
+    const selectedLocations = Array.from(locationCheckboxes).filter(cb => cb.checked);
+    const selectedWarehouses = Array.from(warehouseCheckboxes).filter(cb => cb.checked);
+    const selectedStatuses = Array.from(statusCheckboxes).filter(cb => cb.checked);
+
+    if (selectedLocations.length === 0 && selectedWarehouses.length === 0 && selectedStatuses.length === 0) {
+      e.preventDefault();
+      alert("Please select at least one Location, Warehouse, or Status before exporting.");
+    }
+  });
+});
+</script>
+</body>
+</html>
