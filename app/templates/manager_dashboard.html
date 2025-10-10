@@ -29,6 +29,13 @@
          📊 View Insights
       </a>
     </div>
+    <!-- Logout -->
+    <div class="text-center mt-6">
+      <a href="{{ url_for('auth.logout') }}"
+         class="text-red-600 font-semibold hover:underline">
+         Logout
+      </a>
+    </div>
 
     <!-- Users Table -->
     <div class="bg-white p-6 rounded-lg shadow-md mb-8">
@@ -157,13 +164,6 @@
       </table>
     </div>
 
-    <!-- Logout -->
-    <div class="text-center mt-6">
-      <a href="{{ url_for('auth.logout') }}"
-         class="text-red-600 font-semibold hover:underline">
-         Logout
-      </a>
-    </div>
   </div>
 
   <div id="addUserModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
@@ -172,7 +172,8 @@
     <form method="POST" action="{{ url_for('manager.add_user') }}">
       <div class="mb-3">
         <label class="block text-sm mb-1">Username</label>
-        <input name="username" type="text" class="w-full border p-2 rounded" required>
+        <input name="username" id="usernameInput" type="text" class="w-full border p-2 rounded" required>
+        <p id="usernameWarning" class="text-red-600 text-sm mt-1 hidden">Username already exists!</p>
       </div>
       <div class="mb-3">
         <label class="block text-sm mb-1">Password</label>
@@ -330,6 +331,72 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 });
+
+async function checkDuplicate(type, value) {
+  const res = await fetch("{{ url_for('manager.check_duplicate') }}", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, value }),
+  });
+  return res.json();
+}
+
+const usernameInput = document.getElementById("usernameInput");
+const usernameWarning = document.getElementById("usernameWarning");
+
+if (usernameInput) {
+  usernameInput.addEventListener("blur", async () => {
+    const value = usernameInput.value.trim();
+    if (!value) return;
+    const { exists } = await checkDuplicate("user", value);
+    usernameWarning.classList.toggle("hidden", !exists);
+  });
+}
+
+// ===== Add User Validation =====
+const addUserForm = document.querySelector('form[action="{{ url_for("manager.add_user") }}"]');
+if (addUserForm) {
+  addUserForm.addEventListener("submit", async (e) => {
+    const username = addUserForm.querySelector('[name="username"]').value.trim();
+    if (!username) return;
+
+    const { exists } = await checkDuplicate("user", username);
+    if (exists) {
+      e.preventDefault();
+      alert("❌ Username already exists. Please choose another one.");
+    }
+  });
+}
+
+// ===== Add Location Validation =====
+const addLocationForm = document.querySelector('form[action="{{ url_for("manager.add_location") }}"]');
+if (addLocationForm) {
+  addLocationForm.addEventListener("submit", async (e) => {
+    const name = addLocationForm.querySelector('[name="name"]').value.trim();
+    if (!name) return;
+
+    const { exists } = await checkDuplicate("location", name);
+    if (exists) {
+      e.preventDefault();
+      alert("⚠️ Location name already exists. Please choose another name.");
+    }
+  });
+}
+
+// ===== Add Warehouse Validation =====
+const addWarehouseForm = document.querySelector('form[action="{{ url_for("manager.add_warehouse") }}"]');
+if (addWarehouseForm) {
+  addWarehouseForm.addEventListener("submit", async (e) => {
+    const name = addWarehouseForm.querySelector('[name="warehouse_name"]').value.trim();
+    if (!name) return;
+
+    const { exists } = await checkDuplicate("warehouse", name);
+    if (exists) {
+      e.preventDefault();
+      alert("⚠️ Warehouse name already exists. Please choose another name.");
+    }
+  });
+}
 </script>
 </body>
 </html>

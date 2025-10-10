@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
-from app.models import db, User, Warehouse, Location
+from sqlalchemy import func
+from app.models import db, User, Warehouse, Location, ScanLine, ScanRecord
 bp = Blueprint("manager", __name__, url_prefix="/manager")
+
 
 @bp.route("/dashboard")
 @login_required
@@ -18,6 +20,7 @@ def dashboard():
         locations=locations,
         warehouses=warehouses
     )
+
 
 @bp.route("/add_user", methods=["POST"])
 @login_required
@@ -43,6 +46,7 @@ def add_user():
     flash(f"New {role} '{username}' added successfully!", "success")
     return redirect(url_for("manager.dashboard"))
 
+
 @bp.route("/toggle_user/<int:user_id>")
 @login_required
 def toggle_user(user_id):
@@ -57,6 +61,7 @@ def toggle_user(user_id):
     else:
         flash("User not found.", "error")
     return redirect(url_for("manager.dashboard"))
+
 
 @bp.route("/update_password/<int:user_id>", methods=["POST"])
 @login_required
@@ -77,9 +82,19 @@ def update_password(user_id):
 @bp.route("/")
 @login_required
 def insights():
-    if current_user.role != "Manager":
-        return "Unauthorized", 403
-    return render_template("manager_insights.html", current_user=current_user)
+    # load filter dropdown options, etc.
+    locations = Location.query.all()
+    warehouses = Warehouse.query.all()
+    counters = User.query.filter_by(role="Counter").all()
+    tls = User.query.filter_by(role="TeamLeader").all()
+
+    return render_template(
+        "manager_insights.html",
+        locations=locations,
+        warehouses=warehouses,
+        counters=counters,
+        tls=tls
+    )
 
 
 @bp.route("/add_location", methods=["POST"])
@@ -91,6 +106,7 @@ def add_location():
     flash("Location added successfully", "success")
     return redirect(url_for("manager.dashboard"))
 
+
 @bp.route("/add_warehouse", methods=["POST"])
 def add_warehouse():
     name = request.form["warehouse_name"]
@@ -101,6 +117,29 @@ def add_warehouse():
     flash("Warehouse added successfully", "success")
     return redirect(url_for("manager.dashboard"))
 
+
+@bp.route("/check_duplicate", methods=["POST"])
+def check_duplicate():
+    """AJAX endpoint to check for duplicate usernames, locations, or warehouses"""
+    data = request.get_json()
+    check_type = data.get("type")
+    value = data.get("value", "").strip().lower()
+
+    if not check_type or not value:
+        return jsonify({"exists": False})
+
+    exists = False
+
+    if check_type == "user":
+        exists = User.query.filter(db.func.lower(User.username) == value).first() is not None
+    elif check_type == "location":
+        exists = Location.query.filter(db.func.lower(Location.name) == value).first() is not None
+    elif check_type == "warehouse":
+        exists = Warehouse.query.filter(db.func.lower(Warehouse.warehouse_name) == value).first() is not None
+
+    return jsonify({"exists": exists})
+
+
 @bp.route("/delete_location/<int:location_id>")
 def delete_location(location_id):
     loc = Location.query.get(location_id)
@@ -108,6 +147,7 @@ def delete_location(location_id):
     db.session.commit()
     flash("Location deleted", "success")
     return redirect(url_for("manager.dashboard"))
+
 
 @bp.route("/delete_warehouse/<int:warehouse_id>")
 def delete_warehouse(warehouse_id):

@@ -1,5 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
+{% block title %}Manager Insights | DSV Stock Count{% endblock %}
+
+{% block content %}
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,14 +15,11 @@
     <div class="flex justify-between items-center mb-8">
       <div>
         <h1 class="text-3xl font-bold mb-2 text-blue-900">DSV STOCK COUNT - Insights Dashboard</h1>
-        <p class="text-gray-600">Manager-only analytics and progress monitoring</p>
+        <p class="text-gray-600">Manager-only analytics and prosdasdasdgress monitoring</p>
         <div class="mt-4 p-3 bg-blue-50 rounded-lg inline-block">
           <span class="font-medium text-blue-900">
             Logged in as: {{ current_user.username }}
           </span>
-          <a href="{{ url_for('auth.logout') }}" class="ml-3 text-sm underline text-blue-900 hover:text-red-600">
-            Sign Out
-          </a>
         </div>
       </div>
       <div class="text-right">
@@ -41,25 +41,38 @@
         <div>
           <label class="block text-sm font-medium mb-2 text-blue-900">Location</label>
           <select id="filterLocation" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
-            <option value="">All Locations</option>
+              <option value="">Alls Locations</option>
+          {% for location in locations %}
+        <option value="{{ location.id }}">{{ location.name }}</option>
+        {% endfor %}
           </select>
         </div>
         <div>
           <label class="block text-sm font-medium mb-2 text-blue-900">Warehouse</label>
           <select id="filterWarehouse" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
             <option value="">All Warehouses</option>
+            {% for warehouse in warehouses %}
+        <option value="{{ warehouse.id }}">{{ warehouse.warehouse_name }}</option>
+        {% endfor %}
           </select>
         </div>
         <div>
           <label class="block text-sm font-medium mb-2 text-blue-900">Counter</label>
           <select id="filterCounter" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
-            <option value="">All Counters</option>
+            <option value="">All Cosdaunters</option>
+             {% for counter in counters %}
+        <option value="{{ counter.id }}">{{ counter.username }}</option>
+        {% endfor %}
           </select>
         </div>
         <div>
           <label class="block text-sm font-medium mb-2 text-blue-900">Team Leader</label>
           <select id="filterTL" class="w-full p-2 rounded-lg border-2 border-blue-900 text-blue-900">
             <option value="">All TLs</option>
+
+        {% for user in tls %}
+        <option value="{{ user.id }}">{{ user.username }}</option>
+        {% endfor %}
           </select>
         </div>
       </div>
@@ -122,82 +135,113 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    let locationChart, warehouseChart, statusChart, counterChart;
+  let locationChart, warehouseChart, statusChart, counterChart;
 
-    function showToast(msg, type = "error") {
-      const toast = document.getElementById("toast");
-      const msgBox = document.getElementById("toastMessage");
-      msgBox.textContent = msg;
-      toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
-        type === "error" ? "bg-red-500" : "bg-green-500"
-      } text-white`;
-      toast.classList.remove("hidden");
-      setTimeout(() => toast.classList.add("hidden"), 3000);
-    }
+  function showToast(msg, type = "error") {
+    const toast = document.getElementById("toast");
+    const msgBox = document.getElementById("toastMessage");
+    msgBox.textContent = msg;
+    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+      type === "error" ? "bg-red-500" : "bg-green-500"
+    } text-white`;
+    toast.classList.remove("hidden");
+    setTimeout(() => toast.classList.add("hidden"), 3000);
+  }
 
-    async function loadInsights() {
-      try {
-        const res = await fetch("/api/insights/dashboard");
-        const data = await res.json();
+  // 🧩 Fetch insights with active filters
+  async function loadInsights() {
+    try {
+      const location = document.getElementById("filterLocation").value;
+      const warehouse = document.getElementById("filterWarehouse").value;
+      const counter = document.getElementById("filterCounter").value;
+      const tl = document.getElementById("filterTL").value;
 
-        document.getElementById("totalLines").textContent = data.totalLines;
-        document.getElementById("activeJobs").textContent = data.activeJobs;
-        document.getElementById("completedJobs").textContent = data.completedJobs;
-        document.getElementById("totalScans").textContent = data.totalScans;
+      const query = new URLSearchParams({ location, warehouse, counter, tl });
+      const res = await fetch(`/api/insights/dashboard?${query.toString()}`);
+      const data = await res.json();
 
-        renderCharts(data);
-      } catch (err) {
-        console.error(err);
-        showToast("Failed to load data");
+      console.log(res)
+      if (!data.success) {
+        showToast(data.error || "Failed to load insights");
+        return;
       }
+
+      // Update KPIs
+      document.getElementById("totalLines").textContent = data.totalLines;
+      document.getElementById("activeJobs").textContent = data.activeJobs;
+      document.getElementById("completedJobs").textContent = data.completedJobs;
+      document.getElementById("totalScans").textContent = data.totalScans;
+
+      renderCharts(data);
+    } catch (err) {
+      console.error(err);
+      showToast("Error fetching data");
     }
+  }
 
-    function renderCharts(data) {
-      const ctx1 = document.getElementById("locationChart");
-      const ctx2 = document.getElementById("warehouseChart");
-      const ctx3 = document.getElementById("statusChart");
-      const ctx4 = document.getElementById("counterChart");
+  // 🧩 Chart Rendering
+  function renderCharts(data) {
+    const ctx1 = document.getElementById("locationChart");
+    const ctx2 = document.getElementById("warehouseChart");
+    const ctx3 = document.getElementById("statusChart");
+    const ctx4 = document.getElementById("counterChart");
 
-      if (locationChart) locationChart.destroy();
-      if (warehouseChart) warehouseChart.destroy();
-      if (statusChart) statusChart.destroy();
-      if (counterChart) counterChart.destroy();
+    if (locationChart) locationChart.destroy();
+    if (warehouseChart) warehouseChart.destroy();
+    if (statusChart) statusChart.destroy();
+    if (counterChart) counterChart.destroy();
 
-      locationChart = new Chart(ctx1, {
-        type: "bar",
-        data: {
-          labels: data.locations || [],
-          datasets: [{ label: "Scans", data: data.locationScans || [], backgroundColor: "#002664" }],
-        },
-      });
+    locationChart = new Chart(ctx1, {
+      type: "bar",
+      data: {
+        labels: data.locations || [],
+        datasets: [{ label: "Scans", data: data.locationScans || [], backgroundColor: "#002664" }],
+      },
+    });
 
-      warehouseChart = new Chart(ctx2, {
-        type: "bar",
-        data: {
-          labels: data.warehouses || [],
-          datasets: [{ label: "Jobs", data: data.warehouseJobs || [], backgroundColor: "#4B87E0" }],
-        },
-      });
+    warehouseChart = new Chart(ctx2, {
+      type: "bar",
+      data: {
+        labels: data.warehouses || [],
+        datasets: [{ label: "Jobs", data: data.warehouseJobs || [], backgroundColor: "#4B87E0" }],
+      },
+    });
 
-      statusChart = new Chart(ctx3, {
-        type: "doughnut",
-        data: {
-          labels: ["Active", "Completed", "Pending"],
-          datasets: [{ data: [data.activeJobs, data.completedJobs, data.totalLines - data.completedJobs], backgroundColor: ["#4B87E0", "#002664", "#94a3b8"] }],
-        },
-      });
+    statusChart = new Chart(ctx3, {
+      type: "doughnut",
+      data: {
+        labels: ["Active", "Completed", "Pending"],
+        datasets: [{
+          data: [data.activeJobs, data.completedJobs, data.totalLines - data.completedJobs],
+          backgroundColor: ["#4B87E0", "#002664", "#94a3b8"],
+        }],
+      },
+    });
 
-      counterChart = new Chart(ctx4, {
-        type: "bar",
-        data: {
-          labels: data.topCounters?.map((c) => c.name) || [],
-          datasets: [{ label: "Total Scans", data: data.topCounters?.map((c) => c.scans) || [], backgroundColor: "#002664" }],
-        },
-      });
-    }
+    counterChart = new Chart(ctx4, {
+      type: "bar",
+      data: {
+        labels: data.topCounters?.map((c) => c.name) || [],
+        datasets: [{ label: "Total Scans", data: data.topCounters?.map((c) => c.scans) || [], backgroundColor: "#002664" }],
+      },
+    });
+  }
 
-    document.getElementById("refreshData").addEventListener("click", loadInsights);
-    document.addEventListener("DOMContentLoaded", loadInsights);
-  </script>
+  // 🧩 Auto refresh whenever a filter changes
+  ["filterLocation", "filterWarehouse", "filterCounter", "filterTL"].forEach(id => {
+    document.getElementById(id).addEventListener("change", loadInsights);
+  });
+
+  // 🧩 Clear Filters
+  document.getElementById("clearFilters").addEventListener("click", () => {
+    ["filterLocation", "filterWarehouse", "filterCounter", "filterTL"].forEach(id => {
+      document.getElementById(id).value = "";
+    });
+    loadInsights();
+  });
+
+  // 🧩 Initial load
+  document.addEventListener("DOMContentLoaded", loadInsights);
+</script>
 </body>
-</html>
+{% endblock %}

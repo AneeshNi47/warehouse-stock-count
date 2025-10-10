@@ -15,7 +15,7 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, default=True)
-
+    
     def __repr__(self):
         return f"<User {self.username} ({self.role})>"
 
