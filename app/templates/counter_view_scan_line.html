@@ -1,5 +1,7 @@
-<!doctype html>
-<html lang="en">
+{% extends "base.html" %}
+{% block title %}Manager Insights | DSV Stock Count{% endblock %}
+
+{% block content %}
 <head>
   <meta charset="utf-8"/>
   <title>DSV Stock Count — Counting</title>
@@ -134,13 +136,12 @@
       <h1>Stock Counting — {{ line.line_code }}</h1>
       <div class="subtitle">{{ line.location.name }} / {{ line.warehouse.warehouse_name }}</div>
       <button onclick="window.location.href='{{ url_for('counter.dashboard') }}'"
-              class="btn btn-primary" style="position:absolute; top:1rem; right:1rem; font-size:0.875rem;">← Dashboard</button>
+              class="btn btn-primary">← Back</button>
     </div>
 
     <!-- KPIs -->
     <div class="card">
-      {{line.is_locked}}
-      <div class="card-title">Count Progress</div>
+      <div class="card-title">Count Progress</div> 
       <div class="kpi-grid">
         <div class="kpi">
           <div class="kpi-label">Scanned</div>
@@ -541,4 +542,4 @@ submitBtn.addEventListener('click', async () => {
     </div>
   </div>
 </body>
-</html>
+{% endblock %}

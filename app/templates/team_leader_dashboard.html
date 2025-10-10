@@ -1,5 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
+{% block title %}Manager Insights | DSV Stock Count{% endblock %}
+
+{% block content %}
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,18 +10,6 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
   <div class="container mx-auto px-4 py-8">
-    <!-- Header -->
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-blue-900 mb-2">DSV STOCK COUNT</h1>
-      <p class="text-gray-600">Line-Based Stock Count System</p>
-
-      <div class="mt-4 p-3 bg-blue-50 rounded-lg inline-block">
-        <span class="text-blue-800 font-medium">Logged in as: {{ current_user.username }}</span>
-        <a href="{{ url_for('auth.logout') }}" class="ml-3 text-blue-600 hover:text-blue-800 text-sm underline">
-          Sign Out
-        </a>
-      </div>
-    </div>
 
     <!-- Tabs -->
     <div class="flex justify-center mb-6">
@@ -463,4 +453,4 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 </body>
-</html>
+{% endblock %}

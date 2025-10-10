@@ -1,5 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
+{% block title %}Manager Insights | DSV Stock Count{% endblock %}
+
+{% block content %}
 <head>
   <meta charset="UTF-8">
   <title>Stock Count - {{ line.line_code }}</title>
@@ -128,4 +130,4 @@
     });
   </script>
 </body>
-</html>
+{% endblock %}

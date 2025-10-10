@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}DSV Stock Count{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ✅ Responsive Navbar -->
+  {% if not request.endpoint or 'auth.login' not in request.endpoint %}
+  <nav class="bg-white shadow-md border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        
+        <!-- Brand / Logo -->
+        <div class="flex items-center space-x-2">
+          <img src="{{ url_for('static', filename='images/dsv_logo.jpg') }}" alt="DSV Logo" class="h-8 w-auto">
+          <span class="text-xl font-semibold text-blue-900">Stock Count</span>
+        </div>
+
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex space-x-6 items-center">
+  {% if current_user.is_authenticated %}
+    {% if current_user.role == 'manager' %}
+      <a href="{{ url_for('manager.insights') }}" class="text-gray-700 hover:text-blue-900 font-medium">Insights</a>
+      <a href="{{ url_for('manager.dashboard') }}" class="text-gray-700 hover:text-blue-900 font-medium">Manage Users</a>
+    {% elif current_user.role == 'team_leader' %}
+      <a href="{{ url_for('team_leader.dashboard') }}" class="text-gray-700 hover:text-blue-900 font-medium">Dashboard</a>
+      <a href="{{ url_for('team_leader.create_scan_line') }}" class="text-gray-700 hover:text-blue-900 font-medium">New Line</a>
+    {% elif current_user.role == 'counter' %}
+      <a href="{{ url_for('counter.dashboard') }}" class="text-gray-700 hover:text-blue-900 font-medium">My Jobs</a>
+    {% endif %}
+
+    <!-- 👤 User Info -->
+    <div class="flex items-center space-x-3 pl-4 border-l border-gray-300">
+      <div class="text-right leading-tight">
+        <p class="text-sm font-semibold text-blue-900">{{ current_user.username }}</p>
+        <p class="text-xs text-gray-600 capitalize">{{ current_user.role }}</p>
+      </div>
+      <div class="w-8 h-8 bg-blue-900 text-white flex items-center justify-center rounded-full font-bold">
+        {{ current_user.username[0]|upper }}
+      </div>
+    </div>
+
+    <!-- 🚪 Sign Out -->
+    <a href="{{ url_for('auth.logout') }}"
+      class="bg-blue-900 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800">
+      Sign Out
+    </a>
+  {% endif %}
+</div>
+
+        <!-- Mobile menu toggle -->
+        <div class="md:hidden">
+          <button id="menuToggle" class="text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            ☰
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden md:hidden bg-white border-t border-gray-200">
+  {% if current_user.is_authenticated %}
+    {% if current_user.role == 'manager' %}
+      <a href="{{ url_for('manager.insights') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Insights</a>
+      <a href="{{ url_for('manager.dashboard') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Manage Users</a>
+    {% elif current_user.role == 'team_leader' %}
+      <a href="{{ url_for('team_leader.dashboard') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Dashboard</a>
+      <a href="{{ url_for('team_leader.create_scan_line') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">New Line</a>
+    {% elif current_user.role == 'counter' %}
+      <a href="{{ url_for('counter.dashboard') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Jobs</a>
+    {% endif %}
+
+    <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 text-gray-700">
+      <p class="font-semibold">{{ current_user.username }}</p>
+      <p class="text-sm capitalize text-gray-600">{{ current_user.role }}</p>
+    </div>
+
+    <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 bg-blue-900 text-white hover:bg-blue-800">Sign Out</a>
+  {% endif %}
+</div>
+  </nav>
+  {% endif %}
+
+  <!-- Page content -->
+  <div class="container mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </div>
+
+  <script>
+    const menuToggle = document.getElementById("menuToggle");
+    const mobileMenu = document.getElementById("mobileMenu");
+    if (menuToggle) {
+      menuToggle.addEventListener("click", () => {
+        mobileMenu.classList.toggle("hidden");
+      });
+    }
+  </script>
+</body>
+</html>
