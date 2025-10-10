@@ -2,9 +2,19 @@ import os
 
 
 class Config:
-    SECRET_KEY = os.getenv("APP_SECRET", "change-this-secret")
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///stockcount.db")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "devkey")
+
+    database_url = os.environ.get("DATABASE_URL")
+
+    # Heroku uses old-style 'postgres://' URLs — fix it for SQLAlchemy
+    if database_url and database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+    SQLALCHEMY_DATABASE_URI = database_url or "sqlite:///stockcount.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = "Lax"
+
+    # AWS / S3
+    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
+    S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
