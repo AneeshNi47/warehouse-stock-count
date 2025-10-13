@@ -4,16 +4,15 @@ Processes uploaded images and extracts up to 3 real barcodes
 Replaces the dummy version that used to return fake data
 """
 
-# Set library path at module import time
+# Set library path for Heroku
 import os
-import glob
+from pyzbar import zbar_library
 
-# Find zbar library in Nix store and set environment variable
-zbar_paths = glob.glob('/nix/store/*-zbar-*/lib')
-if zbar_paths:
-    existing_path = os.environ.get('LD_LIBRARY_PATH', '')
-    os.environ['LD_LIBRARY_PATH'] = ':'.join(zbar_paths) + (':' + existing_path if existing_path else '')
-    print(f"Set LD_LIBRARY_PATH to include zbar: {zbar_paths[0]}")
+# Detect if running on Heroku (by presence of .apt directory)
+if os.path.exists("/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"):
+    # Set library path and force load on Heroku only
+    os.environ['LD_LIBRARY_PATH'] = '/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib'
+    zbar_library.load() 
 
 def process_barcode_image(image_data):
     """
@@ -23,7 +22,11 @@ def process_barcode_image(image_data):
         image_data: Can be a file path, file object, or base64 string
 
     Returns:
-        list: List of detected barcode serial numbers
+        dict: {
+            success: bool,
+            codes: list of strings,
+            message: string
+        }
     """
     try:
         import cv2
