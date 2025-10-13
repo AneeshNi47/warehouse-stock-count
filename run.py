@@ -1,10 +1,8 @@
-from app.libzbar_preload import preload_libzbar
-preload_libzbar()
+from app.libzbar_preload import preload_zbar_for_heroku
+preload_zbar_for_heroku()
 
-from app import create_app, db
 import os
-
-
+from app import create_app, db
 app = create_app()
 
 if __name__ == "__main__":
