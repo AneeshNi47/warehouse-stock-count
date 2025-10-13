@@ -1,83 +1,61 @@
-import os
-import ctypes
-import logging
+"""
+Barcode processor module
+Processes uploaded images and extracts up to 3 real barcodes
+"""
 
-HEROKU_ZBAR_PATH = "/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"
-
-
-def get_decoder():
-    try:
-        if os.path.exists(HEROKU_ZBAR_PATH):
-            os.environ["LD_LIBRARY_PATH"] = "/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib"
-            ctypes.cdll.LoadLibrary(HEROKU_ZBAR_PATH)
-            logging.info("✅ Heroku: Loaded libzbar using ctypes.")
-        else:
-            logging.info("✅ Local: Assuming libzbar is available on system.")
-    except Exception as e:
-        logging.warning(f"⚠️ Failed to preload libzbar: {e}")
-
-    # Only import after lib is loaded
-    from pyzbar.pyzbar import decode
-    return decode
-
+import io
+import base64
+from PIL import Image
+import cv2
+import numpy as np
+from pyzbar.pyzbar import decode  # Safe now, libzbar is preloaded
 
 def process_barcode_image(image_data):
-    try:
-        import cv2
-        import numpy as np
-        from app.barcode_loader import get_decoder
-        from PIL import Image
-        import io, base64
+    """
+    Process an uploaded image and extract barcode data
 
-        decode = get_decoder()
-        # Decode image input
+    Args:
+        image_data: Can be a file path, file object, or base64 string
+
+    Returns:
+        dict: {success: bool, codes: list, message: str}
+    """
+    try:
+        # Decode input image
         if isinstance(image_data, str):
-            # Base64 input
             image_bytes = base64.b64decode(image_data)
             pil_img = Image.open(io.BytesIO(image_bytes))
         else:
-            # Raw file bytes
             pil_img = Image.open(io.BytesIO(image_data))
 
         # Convert PIL → OpenCV
         image = cv2.cvtColor(np.array(pil_img.convert("RGB")), cv2.COLOR_RGB2BGR)
 
-        def enhance_image(img):
+        # Enhance + grayscale
+        def enhance(img):
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             gray = cv2.convertScaleAbs(gray, alpha=1.6, beta=0)
-            gray = cv2.GaussianBlur(gray, (3, 3), 0)
-            return gray
+            return cv2.GaussianBlur(gray, (3, 3), 0)
 
-        def rotate_image(img, angle):
+        def rotate(img, angle):
             (h, w) = img.shape[:2]
-            center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, angle, 1.0)
-            cos, sin = abs(M[0, 0]), abs(M[0, 1])
-            nW = int((h * sin) + (w * cos))
-            nH = int((h * cos) + (w * sin))
-            M[0, 2] += (nW / 2) - center[0]
-            M[1, 2] += (nH / 2) - center[1]
-            return cv2.warpAffine(img, M, (nW, nH))
+            M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
+            return cv2.warpAffine(img, M, (w, h))
 
-        gray = enhance_image(image)
+        gray = enhance(image)
         all_decoded = []
 
-        # Multi-angle, multi-scale scanning
         for angle in [0, 90, 180, 270]:
-            rotated = rotate_image(gray, angle)
+            rotated = rotate(gray, angle)
             for scale in [1.0, 1.25, 1.5]:
                 resized = cv2.resize(rotated, (0, 0), fx=scale, fy=scale)
                 decoded = decode(resized)
                 all_decoded.extend(decoded)
 
         if not all_decoded:
-            return {
-                'success': False,
-                'codes': [],
-                'message': 'No barcodes detected'
-            }
+            return {'success': False, 'codes': [], 'message': 'No barcodes detected'}
 
-        # Deduplicate and sort top → bottom
+        # Deduplicate
         seen = set()
         unique = []
         for obj in all_decoded:
@@ -85,20 +63,12 @@ def process_barcode_image(image_data):
             if data not in seen:
                 seen.add(data)
                 unique.append(obj)
-        unique = sorted(unique, key=lambda o: o.rect.top)
 
-        # Extract up to 3 barcodes
+        # Sort top → bottom and return top 3
+        unique = sorted(unique, key=lambda o: o.rect.top)
         codes = [obj.data.decode('utf-8') for obj in unique[:3]]
 
-        return {
-            'success': True,
-            'codes': codes,
-            'message': f'{len(codes)} barcode(s) detected successfully'
-        }
+        return {'success': True, 'codes': codes, 'message': f'{len(codes)} barcode(s) detected successfully'}
 
     except Exception as e:
-        return {
-            'success': False,
-            'codes': [],
-            'message': f'Error processing image: {str(e)}'
-        }
+        return {'success': False, 'codes': [], 'message': f'Error processing image: {str(e)}'}

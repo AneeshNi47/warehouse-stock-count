@@ -1,5 +1,7 @@
 from app import create_app, db
 import os
+from app.libzbar_preload import preload_libzbar
+preload_libzbar()
 
 app = create_app()
 
