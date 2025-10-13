@@ -1,23 +1,26 @@
 import os
+import ctypes
 import logging
 from pyzbar import zbar_library
 
-# Try to manually load zbar shared lib if on Heroku
+# Define Heroku-specific path
 HEROKU_ZBAR_PATH = "/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"
 
 try:
     if os.path.exists(HEROKU_ZBAR_PATH):
-        # Set env variable (just in case pyzbar or subprocesses need it)
+        # We're on Heroku – manually load libzbar using ctypes
         os.environ["LD_LIBRARY_PATH"] = "/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib"
-        # Force pyzbar to load explicitly
-        zbar_library.load(HEROKU_ZBAR_PATH)
-        logging.info("✅ Loaded libzbar explicitly from Heroku apt path.")
+        ctypes.cdll.LoadLibrary(HEROKU_ZBAR_PATH)
+        logging.info("✅ Heroku: Loaded libzbar using ctypes.")
     else:
-        # Let pyzbar try to auto-load from system (brew install zbar)
+        # Local or other – use pyzbar's built-in loader
         zbar_library.load()
-        logging.info("✅ Loaded system libzbar")
+        logging.info("✅ Local: Loaded libzbar using pyzbar loader.")
 except Exception as e:
-    logging.warning(f"⚠️ Failed to load zbar shared library: {e}")
+    logging.warning(f"⚠️ Failed to load libzbar: {e}")
+
+
+from pyzbar.pyzbar import decode
 
 
 def process_barcode_image(image_data):
