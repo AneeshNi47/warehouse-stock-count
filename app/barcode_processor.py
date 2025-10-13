@@ -1,18 +1,20 @@
-"""
-Barcode processor module
-Processes uploaded images and extracts up to 3 real barcodes
-Replaces the dummy version that used to return fake data
-"""
-
-# Set library path for Heroku
 import os
+import logging
 from pyzbar import zbar_library
 
-# Detect if running on Heroku (by presence of .apt directory)
-if os.path.exists("/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"):
-    # Set library path and force load on Heroku only
-    os.environ['LD_LIBRARY_PATH'] = '/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib'
-    zbar_library.load() 
+# Conditionally set and load zbar only if running on Heroku
+HEROKU_ZBAR_PATH = "/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"
+
+try:
+    if os.path.exists(HEROKU_ZBAR_PATH):
+        os.environ["LD_LIBRARY_PATH"] = "/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib"
+        zbar_library.load()
+        logging.info("Loaded libzbar from Heroku .apt")
+    else:
+        logging.info("Running locally, relying on system libzbar")
+except Exception as e:
+    logging.warning(f"Failed to load zbar shared library: {e}")
+
 
 def process_barcode_image(image_data):
     """
