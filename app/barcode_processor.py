@@ -4,40 +4,32 @@ import logging
 
 HEROKU_ZBAR_PATH = "/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"
 
-try:
-    if os.path.exists(HEROKU_ZBAR_PATH):
-        os.environ["LD_LIBRARY_PATH"] = "/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib"
-        ctypes.cdll.LoadLibrary(HEROKU_ZBAR_PATH)
-        logging.info("✅ Heroku: Loaded libzbar using ctypes.")
-except Exception as e:
-    logging.warning(f"⚠️ Failed to load libzbar: {e}")
 
-# ✅ Delay all pyzbar imports until now
-from pyzbar import zbar_library
-from pyzbar.pyzbar import decode
+def get_decoder():
+    try:
+        if os.path.exists(HEROKU_ZBAR_PATH):
+            os.environ["LD_LIBRARY_PATH"] = "/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib"
+            ctypes.cdll.LoadLibrary(HEROKU_ZBAR_PATH)
+            logging.info("✅ Heroku: Loaded libzbar using ctypes.")
+        else:
+            logging.info("✅ Local: Assuming libzbar is available on system.")
+    except Exception as e:
+        logging.warning(f"⚠️ Failed to preload libzbar: {e}")
+
+    # Only import after lib is loaded
+    from pyzbar.pyzbar import decode
+    return decode
 
 
 def process_barcode_image(image_data):
-    """
-    Process an uploaded image and extract barcode data
-
-    Args:
-        image_data: Can be a file path, file object, or base64 string
-
-    Returns:
-        dict: {
-            success: bool,
-            codes: list of strings,
-            message: string
-        }
-    """
     try:
         import cv2
         import numpy as np
-        from pyzbar.pyzbar import decode
+        from app.barcode_loader import get_decoder
         from PIL import Image
         import io, base64
 
+        decode = get_decoder()
         # Decode image input
         if isinstance(image_data, str):
             # Base64 input
