@@ -2,18 +2,22 @@ import os
 import logging
 from pyzbar import zbar_library
 
-# Conditionally set and load zbar only if running on Heroku
+# Try to manually load zbar shared lib if on Heroku
 HEROKU_ZBAR_PATH = "/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"
 
 try:
     if os.path.exists(HEROKU_ZBAR_PATH):
+        # Set env variable (just in case pyzbar or subprocesses need it)
         os.environ["LD_LIBRARY_PATH"] = "/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib"
-        zbar_library.load()
-        logging.info("Loaded libzbar from Heroku .apt")
+        # Force pyzbar to load explicitly
+        zbar_library.load(HEROKU_ZBAR_PATH)
+        logging.info("✅ Loaded libzbar explicitly from Heroku apt path.")
     else:
-        logging.info("Running locally, relying on system libzbar")
+        # Let pyzbar try to auto-load from system (brew install zbar)
+        zbar_library.load()
+        logging.info("✅ Loaded system libzbar")
 except Exception as e:
-    logging.warning(f"Failed to load zbar shared library: {e}")
+    logging.warning(f"⚠️ Failed to load zbar shared library: {e}")
 
 
 def process_barcode_image(image_data):
