@@ -1,25 +1,19 @@
 import os
 import ctypes
 import logging
-from pyzbar import zbar_library
 
-# Define Heroku-specific path
 HEROKU_ZBAR_PATH = "/app/.apt/usr/lib/x86_64-linux-gnu/libzbar.so.0"
 
 try:
     if os.path.exists(HEROKU_ZBAR_PATH):
-        # We're on Heroku – manually load libzbar using ctypes
         os.environ["LD_LIBRARY_PATH"] = "/app/.apt/usr/lib/x86_64-linux-gnu:/app/.apt/usr/lib"
         ctypes.cdll.LoadLibrary(HEROKU_ZBAR_PATH)
         logging.info("✅ Heroku: Loaded libzbar using ctypes.")
-    else:
-        # Local or other – use pyzbar's built-in loader
-        zbar_library.load()
-        logging.info("✅ Local: Loaded libzbar using pyzbar loader.")
 except Exception as e:
     logging.warning(f"⚠️ Failed to load libzbar: {e}")
 
-
+# ✅ Delay all pyzbar imports until now
+from pyzbar import zbar_library
 from pyzbar.pyzbar import decode
 
 
