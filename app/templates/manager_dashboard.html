@@ -73,6 +73,10 @@
                  class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded">
                  {% if user.is_active %}Disable{% else %}Enable{% endif %}
               </a>
+              <button onclick="openEditUserModal({{ user.id }}, '{{ user.username }}', '{{ user.role }}')"
+                      class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                Edit
+              </button>
               <button onclick="openPasswordModal({{ user.id }}, '{{ user.username }}')"
                       class="text-sm bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded">
                 Reset Password
@@ -112,9 +116,15 @@
             <td class="p-2 border-b">{{ location.created_by or '-' }}</td>
             <td class="p-2 border-b">{{ location.created_on.strftime('%Y-%m-%d') }}</td>
             <td class="p-2 border-b text-center">
+              <button onclick="openEditLocationModal({{ location.id }}, '{{ location.name }}')"
+                      class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                Edit
+              </button>
               <a href="{{ url_for('manager.delete_location', location_id=location.id) }}"
                  class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
-                 onclick="return confirm('Delete this location?');">Delete</a>
+                 onclick="return confirm('Delete this location?');">
+                 Delete
+              </a>
             </td>
           </tr>
           {% else %}
@@ -152,6 +162,10 @@
             <td class="p-2 border-b">{{ warehouse.created_by or '-' }}</td>
             <td class="p-2 border-b">{{ warehouse.created_on.strftime('%Y-%m-%d') }}</td>
             <td class="p-2 border-b text-center">
+              <button onclick="openEditWarehouseModal({{ warehouse.id }}, '{{ warehouse.warehouse_name }}', {{ warehouse.location.id }})"
+                      class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                Edit
+              </button>
               <a href="{{ url_for('manager.delete_warehouse', warehouse_id=warehouse.id) }}"
                  class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
                  onclick="return confirm('Delete this warehouse?');">Delete</a>
@@ -232,6 +246,30 @@
   </div>
 </div>
 
+<div id="editUserModal"
+     class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+    <button id="closeEditUserModal"
+            type="button"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">✕</button>
+
+    <h2 id="editUserModalTitle" class="text-xl font-semibold mb-4">Edit User</h2>
+
+    <form id="editUserForm" method="POST">
+      <!-- action is set dynamically via JS -->
+      <div class="mb-3">
+        <label class="block text-sm mb-1">Username</label>
+        <input id="editUsername" name="username" type="text" class="w-full border p-2 rounded" required />
+      </div>
+
+      <div class="flex justify-end space-x-3 mt-4">
+        <button type="button" id="closeEditUserModalBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Update</button>
+      </div>
+    </form>
+  </div>
+</div>
+
   <!-- Add Location Modal -->
   <div id="addLocationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
@@ -248,6 +286,31 @@
       </form>
     </div>
   </div>
+
+  <!-- Edit Location Modal -->
+<div id="editLocationModal"
+     class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+    <button id="closeEditLocationModal"
+            type="button"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">✕</button>
+
+    <h2 id="editLocationModalTitle" class="text-xl font-semibold mb-4">Edit Location</h2>
+
+    <form id="editLocationForm" method="POST">
+      <!-- Action set dynamically -->
+      <div class="mb-3">
+        <label class="block text-sm mb-1">Location Name</label>
+        <input id="editLocationName" name="name" type="text" class="w-full border p-2 rounded" required />
+      </div>
+
+      <div class="flex justify-end space-x-3 mt-4">
+        <button type="button" id="closeEditLocationModalBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Update</button>
+      </div>
+    </form>
+  </div>
+</div>
 
   <!-- Add Warehouse Modal -->
   <div id="addWarehouseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
@@ -273,6 +336,40 @@
       </form>
     </div>
   </div>
+
+  <!-- Edit Warehouse Modal -->
+<div id="editWarehouseModal"
+     class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+    <button id="closeEditWarehouseModal"
+            type="button"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">✕</button>
+
+    <h2 id="editWarehouseModalTitle" class="text-xl font-semibold mb-4">Edit Warehouse</h2>
+
+    <form id="editWarehouseForm" method="POST">
+      <!-- Action set in JS -->
+      <div class="mb-3">
+        <label class="block text-sm mb-1">Warehouse Name</label>
+        <input id="editWarehouseName" name="warehouse_name" type="text" class="w-full border p-2 rounded" required />
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-sm mb-1">Linked Location</label>
+        <select id="editWarehouseLocation" name="location_id" class="w-full border p-2 rounded" required>
+          {% for location in locations %}
+          <option value="{{ location.id }}">{{ location.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="flex justify-end space-x-3 mt-4">
+        <button type="button" id="closeEditWarehouseModalBtn" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Update</button>
+      </div>
+    </form>
+  </div>
+</div>
 
   <!-- Existing modals and JS from before -->
 <script>
@@ -304,6 +401,28 @@ document.addEventListener("DOMContentLoaded", function() {
     closePasswordModal.addEventListener("click", () => passwordModal.classList.add("hidden"));
   }
 
+  // ========== Edit User Modal ==========
+const editUserModal = document.getElementById("editUserModal");
+const closeEditUserModal = document.getElementById("closeEditUserModal");
+const closeEditUserModalBtn = document.getElementById("closeEditUserModalBtn");
+const editUserForm = document.getElementById("editUserForm");
+
+window.openEditUserModal = function (userId, username, role) {
+  // Set form action
+  editUserForm.action = `/manager/edit_user/${userId}`;
+  // Set values
+  document.getElementById("editUsername").value = username;
+  document.getElementById("editUserModalTitle").innerText = `Edit User: ${username}`;
+  // Show modal
+  editUserModal.classList.remove("hidden");
+};
+
+if (closeEditUserModal) {
+  closeEditUserModal.addEventListener("click", () => editUserModal.classList.add("hidden"));
+}
+if (closeEditUserModalBtn) {
+  closeEditUserModalBtn.addEventListener("click", () => editUserModal.classList.add("hidden"));
+}
   // ========== Add Location Modal ==========
   const addLocationModal = document.getElementById("addLocationModal");
   const openAddLocationBtn = document.getElementById("openAddLocationModal");
@@ -314,6 +433,22 @@ document.addEventListener("DOMContentLoaded", function() {
     closeAddLocationBtn.addEventListener("click", () => addLocationModal.classList.add("hidden"));
   }
 
+  // ===== Edit Location Modal =====
+const editLocationModal = document.getElementById("editLocationModal");
+const closeEditLocationModal = document.getElementById("closeEditLocationModal");
+const closeEditLocationModalBtn = document.getElementById("closeEditLocationModalBtn");
+const editLocationForm = document.getElementById("editLocationForm");
+
+window.openEditLocationModal = function (id, name) {
+  editLocationForm.action = `/manager/edit_location/${id}`;
+  document.getElementById("editLocationName").value = name;
+  document.getElementById("editLocationModalTitle").innerText = `Edit Location: ${name}`;
+  editLocationModal.classList.remove("hidden");
+};
+
+closeEditLocationModal?.addEventListener("click", () => editLocationModal.classList.add("hidden"));
+closeEditLocationModalBtn?.addEventListener("click", () => editLocationModal.classList.add("hidden"));
+
   // ========== Add Warehouse Modal ==========
   const addWarehouseModal = document.getElementById("addWarehouseModal");
   const openAddWarehouseBtn = document.getElementById("openAddWarehouseModal");
@@ -323,6 +458,23 @@ document.addEventListener("DOMContentLoaded", function() {
     openAddWarehouseBtn.addEventListener("click", () => addWarehouseModal.classList.remove("hidden"));
     closeAddWarehouseBtn.addEventListener("click", () => addWarehouseModal.classList.add("hidden"));
   }
+
+  // ===== Edit Warehouse Modal =====
+const editWarehouseModal = document.getElementById("editWarehouseModal");
+const closeEditWarehouseModal = document.getElementById("closeEditWarehouseModal");
+const closeEditWarehouseModalBtn = document.getElementById("closeEditWarehouseModalBtn");
+const editWarehouseForm = document.getElementById("editWarehouseForm");
+
+window.openEditWarehouseModal = function (id, name, locationId) {
+  editWarehouseForm.action = `/manager/edit_warehouse/${id}`;
+  document.getElementById("editWarehouseName").value = name;
+  document.getElementById("editWarehouseLocation").value = locationId;
+  document.getElementById("editWarehouseModalTitle").innerText = `Edit Warehouse: ${name}`;
+  editWarehouseModal.classList.remove("hidden");
+};
+
+closeEditWarehouseModal?.addEventListener("click", () => editWarehouseModal.classList.add("hidden"));
+closeEditWarehouseModalBtn?.addEventListener("click", () => editWarehouseModal.classList.add("hidden"));
 
   // Optional UX: click outside modal to close
   document.querySelectorAll(".fixed.bg-black.bg-opacity-50").forEach(overlay => {
