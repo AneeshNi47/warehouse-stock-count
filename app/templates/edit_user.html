@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Edit User - DSV</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-6 text-center">Edit User</h1>
+    <form method="POST">
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Username</label>
+        <input name="username" value="{{ user.username }}" type="text" class="w-full border p-2 rounded" required />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Role</label>
+        <select name="role" class="w-full border p-2 rounded" required>
+          <option value="TeamLeader" {% if user.role == "TeamLeader" %}selected{% endif %}>Team Leader</option>
+          <option value="Counter" {% if user.role == "Counter" %}selected{% endif %}>Counter</option>
+        </select>
+      </div>
+      <div class="flex justify-end space-x-4">
+        <a href="{{ url_for('manager.dashboard') }}"
+           class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+          Cancel
+        </a>
+        <button type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          Save
+        </button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

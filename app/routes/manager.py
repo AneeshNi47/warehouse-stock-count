@@ -78,6 +78,21 @@ def update_password(user_id):
         flash("User not found.", "error")
     return redirect(url_for("manager.dashboard"))
 
+@bp.route('/edit_user/<int:user_id>', methods=['POST'])
+@login_required
+def edit_user(user_id):
+    user = User.query.get_or_404(user_id)
+    new_username = request.form['username']
+
+    # Optional: Prevent duplicate usernames
+    if User.query.filter(User.username == new_username, User.id != user_id).first():
+        flash("Username already exists!", "error")
+        return redirect(url_for("manager.dashboard"))
+
+    user.username = new_username
+    db.session.commit()
+    flash("User updated successfully!", "success")
+    return redirect(url_for("manager.dashboard"))
 
 @bp.route("/")
 @login_required
@@ -96,7 +111,6 @@ def insights():
         tls=tls
     )
 
-
 @bp.route("/add_location", methods=["POST"])
 def add_location():
     name = request.form["name"]
@@ -104,6 +118,22 @@ def add_location():
     db.session.add(loc)
     db.session.commit()
     flash("Location added successfully", "success")
+    return redirect(url_for("manager.dashboard"))
+
+@bp.route('/edit_location/<int:location_id>', methods=['POST'])
+@login_required
+def edit_location(location_id):
+    location = Location.query.get_or_404(location_id)
+    new_name = request.form['name']
+
+    # Optional: Prevent duplicates
+    if Location.query.filter(Location.name == new_name, Location.id != location_id).first():
+        flash("Location name already exists!", "error")
+        return redirect(url_for("manager.dashboard"))
+
+    location.name = new_name
+    db.session.commit()
+    flash("Location updated successfully!", "success")
     return redirect(url_for("manager.dashboard"))
 
 
@@ -115,6 +145,25 @@ def add_warehouse():
     db.session.add(wh)
     db.session.commit()
     flash("Warehouse added successfully", "success")
+    return redirect(url_for("manager.dashboard"))
+
+
+@bp.route('/edit_warehouse/<int:warehouse_id>', methods=['POST'])
+@login_required
+def edit_warehouse(warehouse_id):
+    warehouse = Warehouse.query.get_or_404(warehouse_id)
+    new_name = request.form['warehouse_name']
+    new_location_id = request.form['location_id']
+
+    # Optional: Duplicate check
+    if Warehouse.query.filter(Warehouse.warehouse_name == new_name, Warehouse.id != warehouse_id).first():
+        flash("Warehouse name already exists!", "error")
+        return redirect(url_for("manager.dashboard"))
+
+    warehouse.warehouse_name = new_name
+    warehouse.location_id = new_location_id
+    db.session.commit()
+    flash("Warehouse updated successfully!", "success")
     return redirect(url_for("manager.dashboard"))
 
 
