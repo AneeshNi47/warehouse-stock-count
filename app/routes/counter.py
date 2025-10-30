@@ -1,7 +1,8 @@
-from flask import request, current_app, Blueprint, jsonify, render_template, redirect, url_for, flash
+from flask import request, Blueprint, jsonify, render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.constants.status import ScanLineStatus
 import time
+from collections import defaultdict
 from werkzeug.utils import secure_filename
 from app.models import ScanLine, ScanRecord, BarcodeEntry
 from app.utils.s3_helper import upload_to_s3, delete_from_s3, generate_presigned_url
@@ -120,13 +121,25 @@ def save_scan_record():
     if not barcodes:
         return jsonify({"success": False, "error": "At least one barcode is required."}), 400
 
-    # ✅ Step 2: Check if any barcode already exists in BarcodeEntry
-    existing = BarcodeEntry.query.filter(BarcodeEntry.barcode.in_(barcodes)).first()
-    if existing:
-        return jsonify({
-            "success": False,
-            "error": "One or more of these barcodes already exist in the system."
-        }), 400
+    # ✅ Step 2: Fetch all existing barcode entries that match any input barcode
+    existing_entries = BarcodeEntry.query.filter(BarcodeEntry.barcode.in_(barcodes)).all()
+
+    # ✅ Step 3: Group by scan_record_id and count matching barcodes
+    scan_record_barcode_count = defaultdict(list)
+
+    for entry in existing_entries:
+        scan_record_barcode_count[entry.scan_record_id].append(entry.barcode)
+
+    # ✅ Step 4: If any scan_record_id has 2 or more matching barcodes from the input, block
+    for scan_record_id, matched_barcodes in scan_record_barcode_count.items():
+        if len(matched_barcodes) >= 2:
+            return jsonify({
+                "success": False,
+                "error": (
+                    f"The barcodes {matched_barcodes} already exist together "
+                    f"under Scan Record ID {scan_record_id}."
+                )
+            }), 400
 
     # ✅ Step 3: Proceed with image saving
     scan_line = ScanLine.query.get(line_id)
@@ -134,7 +147,7 @@ def save_scan_record():
         return jsonify({"success": False, "error": "Invalid scan line."}), 404
 
     filename = None
-    s3_key=""
+    s3_key = ""
     if image:
         timestamp = str(time.time()).replace(".", "")
         filename = f"{timestamp}_{secure_filename(image.filename)}"

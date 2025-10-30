@@ -176,7 +176,7 @@ class BarcodeEntry(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     scan_record_id = db.Column(db.Integer, db.ForeignKey('scan_records.id', ondelete='CASCADE'))
-    barcode = db.Column(db.String(255), unique=True, nullable=False)
+    barcode = db.Column(db.String(255), nullable=False)
     __table_args__ = (
             db.Index('idx_barcode_unique', 'barcode', unique=True),
         )
