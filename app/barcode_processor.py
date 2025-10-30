@@ -7,7 +7,7 @@ from pyzbar.pyzbar import decode
 
 def process_barcode_image(image_data):
     """
-    Optimized barcode processor – 10–100x faster
+    Optimized, sorted (top→bottom), and version-safe barcode processor
     """
     try:
         # Decode input image once
@@ -31,29 +31,56 @@ def process_barcode_image(image_data):
         gray = cv2.convertScaleAbs(gray, alpha=1.5, beta=0)
         gray = cv2.GaussianBlur(gray, (3, 3), 0)
 
-        # ✅ Try built-in OpenCV detector first (faster than pyzbar)
+        # ✅ Try OpenCV barcode detector (handles both signatures)
         detector = cv2.barcode_BarcodeDetector()
-        retval, decoded_info, decoded_type, corners = detector.detectAndDecode(gray)
-        barcodes = [d for d in decoded_info if d]
+        try:
+            retval, decoded_info, decoded_type, corners = detector.detectAndDecode(gray)
+        except ValueError:
+            retval, decoded_info, decoded_type = detector.detectAndDecode(gray)
+            corners = None
 
-        # ✅ Fallback to pyzbar if OpenCV found nothing
-        if not barcodes:
+        results = []
+
+        # Add OpenCV results (with coordinates)
+        if retval and decoded_info:
+            for text, pts in zip(decoded_info, corners or []):
+                if text:
+                    y_avg = np.mean(pts[:, 1]) if pts is not None else 0
+                    results.append({'code': text, 'y': y_avg})
+
+        # ✅ Fallback to pyzbar (and also record coordinates)
+        if not results:
             decoded_objects = decode(gray)
-            barcodes = list({obj.data.decode('utf-8') for obj in decoded_objects})
+            for obj in decoded_objects:
+                (x, y, w, h) = obj.rect
+                results.append({'code': obj.data.decode('utf-8'), 'y': y + h/2})
 
-            # 🔁 Optional: try a single rotation if still empty
-            if not barcodes:
+            # Try one rotation if nothing found
+            if not results:
                 rotated = cv2.rotate(gray, cv2.ROTATE_90_CLOCKWISE)
                 decoded_objects = decode(rotated)
-                barcodes = list({obj.data.decode('utf-8') for obj in decoded_objects})
+                for obj in decoded_objects:
+                    (x, y, w, h) = obj.rect
+                    results.append({'code': obj.data.decode('utf-8'), 'y': y + h/2})
 
-        # ✅ Limit to 3 results, sorted top→bottom if rects exist
-        codes = barcodes[:3]
-
-        if not codes:
+        if not results:
             return {'success': False, 'codes': [], 'message': 'No barcodes detected'}
-        else:
-            return {'success': True, 'codes': codes, 'message': f'{len(codes)} barcode(s) detected successfully'}
+
+        # ✅ Sort top → bottom (ascending y)
+        results.sort(key=lambda r: r['y'])
+
+        # ✅ Extract only top 3 unique codes
+        seen = set()
+        codes = []
+        for r in results:
+            if r['code'] not in seen:
+                seen.add(r['code'])
+                codes.append(r['code'])
+            if len(codes) >= 3:
+                break
+
+        return {'success': True, 'codes': codes, 'message': f'{len(codes)} barcode(s) detected successfully'}
 
     except Exception as e:
+        print(e)
         return {'success': False, 'codes': [], 'message': f'Error processing image: {str(e)}'}

@@ -149,6 +149,7 @@ class ScanRecord(db.Model):
         db.Integer,
         db.ForeignKey("users.id", name="fk_scanrecord_counter_id"),
     )
+    quantity = db.Column(db.Integer, default=1, nullable=True)
 
     barcode_1 = db.Column(db.String(100))
     barcode_2 = db.Column(db.String(100))
