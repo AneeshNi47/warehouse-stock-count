@@ -1,27 +1,16 @@
-"""
-Barcode processor module
-Processes uploaded images and extracts up to 3 real barcodes
-"""
-
 import io
 import base64
 from PIL import Image
 import cv2
 import numpy as np
-from pyzbar.pyzbar import decode  # Safe now, libzbar is preloaded
+from pyzbar.pyzbar import decode
 
 def process_barcode_image(image_data):
     """
-    Process an uploaded image and extract barcode data
-
-    Args:
-        image_data: Can be a file path, file object, or base64 string
-
-    Returns:
-        dict: {success: bool, codes: list, message: str}
+    Optimized, sorted (top→bottom), and version-safe barcode processor
     """
     try:
-        # Decode input image
+        # Decode input image once
         if isinstance(image_data, str):
             image_bytes = base64.b64decode(image_data)
             pil_img = Image.open(io.BytesIO(image_bytes))
@@ -31,44 +20,67 @@ def process_barcode_image(image_data):
         # Convert PIL → OpenCV
         image = cv2.cvtColor(np.array(pil_img.convert("RGB")), cv2.COLOR_RGB2BGR)
 
-        # Enhance + grayscale
-        def enhance(img):
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            gray = cv2.convertScaleAbs(gray, alpha=1.6, beta=0)
-            return cv2.GaussianBlur(gray, (3, 3), 0)
+        # ✅ Resize if too large (max dimension = 1280 px)
+        h, w = image.shape[:2]
+        if max(h, w) > 1280:
+            scale = 1280 / max(h, w)
+            image = cv2.resize(image, (int(w * scale), int(h * scale)))
 
-        def rotate(img, angle):
-            (h, w) = img.shape[:2]
-            M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
-            return cv2.warpAffine(img, M, (w, h))
+        # ✅ Preprocess once
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.convertScaleAbs(gray, alpha=1.5, beta=0)
+        gray = cv2.GaussianBlur(gray, (3, 3), 0)
 
-        gray = enhance(image)
-        all_decoded = []
+        # ✅ Try OpenCV barcode detector (handles both signatures)
+        detector = cv2.barcode_BarcodeDetector()
+        try:
+            retval, decoded_info, decoded_type, corners = detector.detectAndDecode(gray)
+        except ValueError:
+            retval, decoded_info, decoded_type = detector.detectAndDecode(gray)
+            corners = None
 
-        for angle in [0, 90, 180, 270]:
-            rotated = rotate(gray, angle)
-            for scale in [1.0, 1.25, 1.5]:
-                resized = cv2.resize(rotated, (0, 0), fx=scale, fy=scale)
-                decoded = decode(resized)
-                all_decoded.extend(decoded)
+        results = []
 
-        if not all_decoded:
+        # Add OpenCV results (with coordinates)
+        if retval and decoded_info:
+            for text, pts in zip(decoded_info, corners or []):
+                if text:
+                    y_avg = np.mean(pts[:, 1]) if pts is not None else 0
+                    results.append({'code': text, 'y': y_avg})
+
+        # ✅ Fallback to pyzbar (and also record coordinates)
+        if not results:
+            decoded_objects = decode(gray)
+            for obj in decoded_objects:
+                (x, y, w, h) = obj.rect
+                results.append({'code': obj.data.decode('utf-8'), 'y': y + h/2})
+
+            # Try one rotation if nothing found
+            if not results:
+                rotated = cv2.rotate(gray, cv2.ROTATE_90_CLOCKWISE)
+                decoded_objects = decode(rotated)
+                for obj in decoded_objects:
+                    (x, y, w, h) = obj.rect
+                    results.append({'code': obj.data.decode('utf-8'), 'y': y + h/2})
+
+        if not results:
             return {'success': False, 'codes': [], 'message': 'No barcodes detected'}
 
-        # Deduplicate
-        seen = set()
-        unique = []
-        for obj in all_decoded:
-            data = obj.data.decode('utf-8')
-            if data not in seen:
-                seen.add(data)
-                unique.append(obj)
+        # ✅ Sort top → bottom (ascending y)
+        results.sort(key=lambda r: r['y'])
 
-        # Sort top → bottom and return top 3
-        unique = sorted(unique, key=lambda o: o.rect.top)
-        codes = [obj.data.decode('utf-8') for obj in unique[:3]]
+        # ✅ Extract only top 3 unique codes
+        seen = set()
+        codes = []
+        for r in results:
+            if r['code'] not in seen:
+                seen.add(r['code'])
+                codes.append(r['code'])
+            if len(codes) >= 3:
+                break
 
         return {'success': True, 'codes': codes, 'message': f'{len(codes)} barcode(s) detected successfully'}
 
     except Exception as e:
+        print(e)
         return {'success': False, 'codes': [], 'message': f'Error processing image: {str(e)}'}

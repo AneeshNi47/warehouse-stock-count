@@ -16,7 +16,7 @@ def create_app():
     migrate.init_app(app, db)
     login_manager.init_app(app)
 
-    from .models import User
+    from .models import User,BarcodeEntry,Location,Warehouse,ScanLine,ScanLineStatus,ScanRecord
 
     @login_manager.user_loader
     def load_user(user_id):
