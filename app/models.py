@@ -155,6 +155,8 @@ class ScanRecord(db.Model):
     barcode_2 = db.Column(db.String(100))
     barcode_3 = db.Column(db.String(100))
     image_path = db.Column(db.String(255))
+    sticker_type = db.Column(db.String(100)) 
+    dispatch_status = db.Column(db.String(50), default="Not Dispatched")  # Dispatched / Not Dispatched
 
     # Status fields
     status = db.Column(db.String(50), default="Scanned")  # Scanned / Completed
