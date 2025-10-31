@@ -94,9 +94,9 @@
           <thead class="bg-gray-100 text-gray-700">
             <tr>
               <th class="p-2 border-b">#</th>
-              <th class="p-2 border-b">Barcode 1</th>
-              <th class="p-2 border-b">Barcode 2</th>
-              <th class="p-2 border-b">Barcode 3</th>
+              <th class="p-2 border-b">MST/Factory</th>
+              <th class="p-2 border-b">EAN</th>
+              <th class="p-2 border-b">S/N</th>
               <th class="p-2 border-b">Counter</th>
               <th class="p-2 border-b">Date / Time</th>
               <th class="p-2 border-b text-center">Actions</th>
@@ -104,7 +104,7 @@
           </thead>
           <tbody>
             {% for record in line.scan_records %}
-            <tr class="hover:bg-gray-50">
+            <tr id="row-{{ record.id }}"  class="hover:bg-gray-50">
               <td class="p-2 border-b">{{ loop.index }}</td>
               <td class="p-2 border-b">{{ record.barcode_1 or '-' }}</td>
               <td class="p-2 border-b">{{ record.barcode_2 or '-' }}</td>
@@ -119,11 +119,16 @@
                       '{{ record.barcode_3 or '' }}',
                       '{{ record.counter_user.username }}',
                       '{{ record.created_on.strftime('%Y-%m-%d %H:%M:%S') }}',
-                      '{{ url_for('static', filename=record.image_path|replace('app/static/', '')) if record.image_path else '' }}'
+                      '{{ record.image_url }}'
                     )"
                     class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
                     View
-                  </button>
+                </button>
+
+                <button onclick="enableEdit({{ record.id }})"
+                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm">
+                        Edit
+                </button>
               </td>
             </tr>
             {% else %}
@@ -172,7 +177,7 @@
     const closeModal = document.getElementById("closeRecordModal");
     const closeBtn = document.getElementById("closeModalBtn");
 
-    function openRecordModal(b1, b2, b3, counter, date, image_path) {
+    function openRecordModal(b1, b2, b3, counter, date, image_url) {
       document.getElementById("modalBarcode1").innerText = b1 || "-";
       document.getElementById("modalBarcode2").innerText = b2 || "-";
       document.getElementById("modalBarcode3").innerText = b3 || "-";
@@ -181,13 +186,13 @@
 
       const imgContainer = document.getElementById("modalImageContainer");
       const img = document.getElementById("modalImage");
-      if (image_path && image_path !== "None") {
+      console.log(image_url,"asdas")
+      if (image_url && image_url !== "None") {
         // Ensure correct static path
-        img.src = image_path.startsWith("/static/")
-          ? image_path
-          : `/static/uploads/${image_path.replace(/^app\/static\/uploads\//, "").replace(/^\/?static\/uploads\//, "")}`;
+        img.src = image_url;
         imgContainer.classList.remove("hidden");
       }
+      
 
       modal.classList.remove("hidden");
     }
@@ -199,10 +204,82 @@
     modal.addEventListener("click", (e) => {
       if (e.target === modal) modal.classList.add("hidden");
     });
+
+    // ✅ Inline editing functions for Scan Records table
+      function enableEdit(id) {
+        const row = document.getElementById(`row-${id}`);
+        if (!row) {
+          console.warn("Row not found for ID:", id);
+          return;
+        }
+
+        // Get the barcode cells (2nd, 3rd, 4th columns)
+        const cells = row.querySelectorAll('td');
+        const b1 = cells[1], b2 = cells[2], b3 = cells[3];
+
+        [b1, b2, b3].forEach(cell => {
+          const val = cell.innerText.trim() === '-' ? '' : cell.innerText.trim();
+          cell.innerHTML = `<input type="text" class="border border-gray-300 rounded px-2 py-1 w-full" value="${val}" />`;
+        });
+
+        // Replace action buttons with Save/Cancel
+        const actionCell = cells[cells.length - 1];
+        actionCell.innerHTML = `
+          <button onclick="saveEdit(${id})" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm mr-1">Save</button>
+          <button onclick="cancelEdit()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">Cancel</button>
+        `;
+      }
+
+      function cancelEdit() {
+        location.reload(); // simply reload to revert back
+    }
+    async function saveEdit(id) {
+    const row = document.querySelector(`#recordsTableBody tr:nth-child(${id})`) || document.getElementById(`row-${id}`);
+    const inputs = row.querySelectorAll('input');
+    const [barcode_1, barcode_2, barcode_3] = Array.from(inputs).map(i => i.value.trim());
+
+    const formData = new FormData();
+    formData.append('record_id', id);
+    formData.append('barcode_1', barcode_1);
+    formData.append('barcode_2', barcode_2);
+    formData.append('barcode_3', barcode_3);
+
+    try {
+      const res = await fetch("{{ url_for('team_leader.update_scan_record') }}", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.error || "Failed to update record.");
+        return;
+      }
+
+      // Update cells with new values
+      const cells = row.querySelectorAll('td');
+      cells[1].innerText = barcode_1 || '-';
+      cells[2].innerText = barcode_2 || '-';
+      cells[3].innerText = barcode_3 || '-';
+
+      // Restore original action buttons
+      const actionCell = cells[cells.length - 1];
+      actionCell.innerHTML = `
+        <button onclick="openRecordModal('${barcode_1}', '${barcode_2}', '${barcode_3}', '', '', '')"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">View</button>
+        <button onclick="enableEdit(${id})"
+                class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm">Edit</button>
+      `;
+
+      alert("✅ Record updated successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Error communicating with the server.");
+    }
+  }
+
     async function approveVariation(type) {
     const formData = new FormData();
     formData.append("line_id", "{{ line.id }}");
     formData.append("type", type);
+
 
     // If approving "additional", include new target count
     if (type === "additional") {

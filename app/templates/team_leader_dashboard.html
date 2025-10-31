@@ -51,7 +51,7 @@
   <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
     <label class="flex items-center space-x-2">
       <input type="checkbox" id="selectAllStatus" class="form-checkbox text-blue-600" />
-      <span class="text-sm font-medium text-gray-700">Select All</span>
+      <span class="text-sm font-medium text-gray-700">Sesdadlect All</span>
     </label>
     {% for status in statuses %}
     <label class="flex items-center space-x-2">
@@ -166,7 +166,6 @@
           </td>
           <td class="p-2 text-blue-600">
             <a href="{{ url_for('team_leader.view_scan_line', id=line.id) }}" class="hover:underline text-blue-600">View</a> |
-            <a href="{{ url_for('team_leader.edit_scan_line', id=line.id) }}" class="hover:underline text-green-600">Edit</a> |
             <a href="{{ url_for('team_leader.delete_scan_line', id=line.id) }}" class="hover:underline text-red-600"
                onclick="return confirm('Delete this scan line?');">Delete</a>
           </td>

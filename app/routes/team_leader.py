@@ -176,6 +176,19 @@ def approve_variation():
     db.session.commit()
     return jsonify({"success": True, "message": message})
 
+@bp.route('/update_scan_record', methods=['POST'])
+@login_required
+def update_scan_record():
+    record_id = request.form.get('record_id')
+    record = ScanRecord.query.get(record_id)
+    if not record:
+        return jsonify({"success": False, "error": "Record not found"})
+
+    record.barcode_1 = request.form.get('barcode_1') or None
+    record.barcode_2 = request.form.get('barcode_2') or None
+    record.barcode_3 = request.form.get('barcode_3') or None
+    db.session.commit()
+    return jsonify({"success": True})
 
 @bp.route("/export_custom", methods=["POST"])
 @login_required
