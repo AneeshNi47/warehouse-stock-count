@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="icon" href="/static/favicon.ico" />
   <style>
-    /* --- your full original CSS kept intact --- */
+    /* ✅ All your original CSS here unchanged */
     :root {
       --dsv-blue: #002664;
       --dsv-light-blue: #4B87E0;
@@ -74,26 +74,60 @@
     .btn-primary { background: var(--dsv-blue); color: var(--dsv-white); }
     .btn-success { background: var(--dsv-success); color: var(--dsv-white); }
     .btn-warning { background: var(--dsv-warning); color: var(--dsv-white); }
-
-    /* ✅ Added: Quantity buttons styling */
-    .qty-wrapper { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 0.75rem; }
-    .qty-btn {
-      background: var(--dsv-light-blue);
-      color: white;
-      border: none;
-      font-size: 1.5rem;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      cursor: pointer;
-    }
-    .qty-btn:hover { background: var(--dsv-blue); }
-    #quantity { width: 60px; text-align: center; font-size: 1.2rem; border: 1px solid var(--dsv-border); border-radius: 8px; padding: 0.4rem 0.25rem; }
-
-    /* --- rest of your CSS unchanged (tables, modals, etc.) --- */
+    .note { font-size: 0.875rem; color: #6b7280; margin-top: 0.75rem; padding: 0.875rem;
+      background: #f9fafb; border-radius: 8px; border-left: 4px solid var(--dsv-light-blue); }
+    
   </style>
-</head>
+<style>
+  /* --- Full Grid Table Borders --- */
+  table.full-grid {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid var(--dsv-border);
+  }
 
+  table.full-grid th,
+  table.full-grid td {
+    border: 1px solid var(--dsv-border);
+    padding: 0.75rem;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  table.full-grid th {
+    background-color: #f3f4f6;
+    color: var(--dsv-blue);
+    font-weight: 600;
+  }
+
+  table.full-grid tr:nth-child(even) {
+    background-color: #f9fafb;
+  }
+
+  table.full-grid tr:hover {
+    background-color: #eef2ff;
+  }
+
+  table.full-grid td {
+    word-break: break-all;
+    white-space: normal;
+  }
+
+  .barcode-lines div {
+    border-bottom: 1px dashed #d1d5db;
+    padding: 0.25rem 0;
+  }
+  .barcode-lines div:last-child {
+    border-bottom: none;
+  }
+</style>
+  <style>
+  td {
+    word-break: break-all;
+    white-space: normal;
+  }
+</style>
+</head>
 <body>
   <div class="container">
 
@@ -109,9 +143,18 @@
     <div class="card">
       <div class="card-title">Count Progress</div> 
       <div class="kpi-grid">
-        <div class="kpi"><div class="kpi-label">Scanned</div><div class="kpi-value" id="scannedTotal">{{ line.current_count }}</div></div>
-        <div class="kpi"><div class="kpi-label">Target</div><div class="kpi-value" id="targetQty">{{ line.target_count }}</div></div>
-        <div class="kpi"><div class="kpi-label">Remaining</div><div class="kpi-value" id="remainingQty">{{ line.target_count - line.current_count }}</div></div>
+        <div class="kpi">
+          <div class="kpi-label">Scanned</div>
+          <div class="kpi-value" id="scannedTotal">{{ line.current_count }}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Target</div>
+          <div class="kpi-value" id="targetQty">{{ line.target_count }}</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Remaining</div>
+          <div class="kpi-value" id="remainingQty">{{ line.target_count - line.current_count }}</div>
+        </div>
       </div>
     </div>
 
@@ -131,103 +174,372 @@
         <input id="barcode_3" placeholder="Barcode 3" class="form-input" style="width:100%; padding:0.75rem; margin-bottom:0.5rem; border:1px solid #d1d5db; border-radius:8px;" />
       </div>
 
-      <!-- ✅ Quantity Added -->
-      <div class="qty-wrapper">
-        <button id="decreaseQty" class="qty-btn">−</button>
-        <input id="quantity" type="text" value="1" readonly />
-        <button id="increaseQty" class="qty-btn">+</button>
-      </div>
-
       <button id="submitBtn" class="btn btn-success" style="width:100%; margin-top:1rem;">✅ Confirm & Save</button>
     </div>
+    <div class="card">
+  <div class="card-title">Raise Variation</div>
+  <p class="text-sm text-gray-600 mb-2">
+    If the count is complete or you need to request additional count, you can submit a variation to your Team Leader.
+  </p>
+  <textarea id="remarks" class="form-input mb-3" placeholder="Add remarks (optional)..."></textarea>
+  <div class="action-grid">
+    <button id="btnCountComplete" class="btn btn-success">Submit as Count Completed</button>
+    <button id="btnAdditionalCount" class="btn btn-warning">Request Additional Count</button>
+  </div>
+</div>
 
-    <!-- Raise Variation + Scanned Records + Modals -->
-    {{ super() }}  <!-- your original sections stay untouched -->
+<div class="card">
+  <div class="card-title">Scanned Records</div>
+
+  <div class="overflow-x-auto">
+    <table class="full-grid text-sm">
+      <thead>
+        <tr>
+          <th style="width: 10%;">#</th>
+          <th style="width: 35%;">Barcodes</th>
+          <th style="width: 30%;">Date / Time</th>
+          <th style="width: 20%;">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody id="recordsTableBody">
+        {% for record in line.scan_records %}
+        <tr>
+          <!-- Index -->
+          <td>{{ loop.index }}</td>
+
+          <!-- ✅ Single Barcode Column -->
+          <td>
+            <div class="barcode-lines">
+              {% if record.barcode_1 %}
+              <div class="text-gray-800 font-medium">{{ record.barcode_1 }}</div>
+              {% endif %}
+              {% if record.barcode_2 %}
+              <div class="text-gray-700">{{ record.barcode_2 }}</div>
+              {% endif %}
+              {% if record.barcode_3 %}
+              <div class="text-gray-700">{{ record.barcode_3 }}</div>
+              {% endif %}
+              {% if not (record.barcode_1 or record.barcode_2 or record.barcode_3) %}
+              <div class="text-gray-400 italic">No barcodes</div>
+              {% endif %}
+            </div>
+          </td>
+
+          <!-- Date / Time -->
+          <td class="text-gray-600 whitespace-nowrap">
+            {{ record.created_on.strftime('%Y-%m-%d %H:%M:%S') }}
+          </td>
+
+          <!-- Actions -->
+          <td class="space-x-2">
+            <button
+              onclick="openRecordModal(
+                '{{ record.barcode_1 or '' }}',
+                '{{ record.barcode_2 or '' }}',
+                '{{ record.barcode_3 or '' }}',
+                '{{ record.created_on.strftime('%Y-%m-%d %H:%M:%S') }}',
+                '{{ record.image_url or '' }}'
+              )"
+              class="btn btn-primary">
+              View
+            </button>
+
+            {% if record.counter_user_id == current_user.id %}
+            <button
+              onclick="deleteRecord({{ record.id }})"
+              class="btn btn-warning">
+              DEL
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr id="noRecordsRow">
+          <td colspan="4" class="p-4 text-center text-gray-500">No scan records found</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- Modal for Viewing Record -->
+<div id="recordModal"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7);
+            z-index:10001; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:12px; padding:1.5rem; max-width:400px; width:90%; position:relative;">
+    <button id="closeModalBtn" style="position:absolute; top:0.5rem; right:0.75rem; border:none; background:none; font-size:1.25rem; cursor:pointer;">✕</button>
+    <h3 style="font-size:1.2rem; font-weight:600; margin-bottom:0.75rem; color:#002664;">Scan Record Details</h3>
+    <p><strong>Barcode 1:</strong> <span id="modalbarcode_1"></span></p>
+    <p><strong>Barcode 2:</strong> <span id="modalbarcode_2"></span></p>
+    <p><strong>Barcode 3:</strong> <span id="modalbarcode_3"></span></p>
+    <p><strong>Date / Time:</strong> <span id="modalDate"></span></p>
+    <div id="modalImageContainer" style="margin-top:1rem;">
+      <p style="font-weight:500; margin-bottom:0.5rem;">Attached Image:</p>
+      <img id="modalImage" src="" crossorigin="anonymous" alt="Scan Image" style="max-width:100%; border-radius:8px; display:block;" />
+    </div>
+  </div>
+</div>
+
 
     <!-- Toast -->
     <div id="toast" style="display:none; position:fixed; bottom:2rem; left:50%; transform:translateX(-50%);
         background:#002664; color:white; padding:0.75rem 1.5rem; border-radius:10px;">Processing...</div>
   </div>
 
-  <!-- ✅ JavaScript Section -->
-  <script>
-    const imageInput = document.getElementById('imageInput');
-    const captureBtn = document.getElementById('captureBtn');
-    const previewImg = document.getElementById('previewImg');
-    const barcode_1 = document.getElementById('barcode_1');
-    const barcode_2 = document.getElementById('barcode_2');
-    const barcode_3 = document.getElementById('barcode_3');
-    const submitBtn = document.getElementById('submitBtn');
-    const toast = document.getElementById('toast');
-    const quantityInput = document.getElementById('quantity');
-    const increaseQty = document.getElementById('increaseQty');
-    const decreaseQty = document.getElementById('decreaseQty');
-    let uploadedFile = null;
+  <!-- ✅ JS Section -->
 
-    // ✅ Quantity logic
-    increaseQty.addEventListener('click', () => {
-      let qty = parseInt(quantityInput.value);
-      quantityInput.value = qty + 1;
-    });
-    decreaseQty.addEventListener('click', () => {
-      let qty = parseInt(quantityInput.value);
-      if (qty > 1) quantityInput.value = qty - 1;
-    });
+<script>
+  const imageInput = document.getElementById('imageInput');
+  const captureBtn = document.getElementById('captureBtn');
+  const previewImg = document.getElementById('previewImg');
+  const barcode_1 = document.getElementById('barcode_1');
+  const barcode_2 = document.getElementById('barcode_2');
+  const barcode_3 = document.getElementById('barcode_3');
+  const submitBtn = document.getElementById('submitBtn');
+  const toast = document.getElementById('toast');
+  let uploadedFile = null;
 
-    captureBtn.addEventListener('click', () => imageInput.click());
+  captureBtn.addEventListener('click', () => imageInput.click());
 
-    // image processing (unchanged)
-    imageInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      uploadedFile = file;
-      previewImg.src = URL.createObjectURL(file);
-      previewImg.style.display = 'block';
-      const formData = new FormData();
-      formData.append('image', file);
-      toast.innerText = '⏳ Processing image...';
-      toast.style.display = 'block';
-      const res = await fetch('{{ url_for("counter.process_barcode") }}', { method: 'POST', body: formData });
-      const data = await res.json();
-      toast.style.display = 'none';
-      if (!data.success) { alert(data.error || data.message); return; }
-      barcode_1.value = data.barcodes[0] || '';
-      barcode_2.value = data.barcodes[1] || '';
-      barcode_3.value = data.barcodes[2] || '';
-      submitBtn.disabled = false;
+  // Step 1: Process image (no save)
+  imageInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    uploadedFile = file;
+
+    previewImg.src = URL.createObjectURL(file);
+    previewImg.style.display = 'block';
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    toast.innerText = '⏳ Processing image...';
+    toast.style.display = 'block';
+
+    const res = await fetch('{{ url_for("counter.process_barcode") }}', {
+      method: 'POST',
+      body: formData
     });
 
-    // save logic (add quantity)
-    submitBtn.addEventListener('click', async () => {
-      const barcodes = [barcode_1.value.trim(), barcode_2.value.trim(), barcode_3.value.trim()].filter(Boolean);
-      if (barcodes.length === 0) { alert("Please scan or enter at least one barcode before saving."); return; }
-      const formData = new FormData();
-      formData.append('image', uploadedFile);
-      formData.append('line_id', '{{ line.id }}');
-      formData.append('barcode_1', barcode_1.value);
-      formData.append('barcode_2', barcode_2.value);
-      formData.append('barcode_3', barcode_3.value);
-      formData.append('quantity', quantityInput.value); // ✅ Added quantity
-      toast.innerText = '💾 Saving scan record...';
-      toast.style.display = 'block';
-      const res = await fetch('{{ url_for("counter.save_scan_record") }}', { method: 'POST', body: formData });
-      const data = await res.json();
-      toast.style.display = 'none';
-      if (!data.success) { alert(data.error || 'Save failed'); return; }
+    const data = await res.json();
+    toast.style.display = 'none';
 
-      // Update KPIs and reset fields
-      document.getElementById('scannedTotal').innerText = data.scanned_count;
-      document.getElementById('remainingQty').innerText = data.remaining;
-      barcode_1.value = ''; barcode_2.value = ''; barcode_3.value = '';
-      previewImg.style.display = 'none';
-      quantityInput.value = 1; // ✅ reset
-      uploadedFile = null;
-      toast.innerText = '✅ Scan saved successfully';
-      toast.style.display = 'block';
-      setTimeout(() => toast.style.display = 'none', 2000);
+    if (!data.success) {
+      alert(data.error || data.message);
+      return;
+    }
+
+    barcode_1.value = data.barcodes[0] || '';
+    barcode_2.value = data.barcodes[1] || '';
+    barcode_3.value = data.barcodes[2] || '';
+    submitBtn.disabled = false;
+  });
+
+// Step 2: Confirm & Save
+submitBtn.addEventListener('click', async () => {
+
+  const barcodes = [barcode_1.value.trim(), barcode_2.value.trim(), barcode_3.value.trim()].filter(Boolean);
+  if (barcodes.length === 0) {
+    alert("Please scan or enter at least one barcode before saving.");
+    return;
+  }
+  const formData = new FormData();
+  formData.append('image', uploadedFile);
+  formData.append('line_id', '{{ line.id }}');
+  formData.append('barcode_1', barcode_1.value);
+  formData.append('barcode_2', barcode_2.value);
+  formData.append('barcode_3', barcode_3.value);
+
+  toast.innerText = '💾 Saving scan record...';
+  toast.style.display = 'block';
+
+  const res = await fetch('{{ url_for("counter.save_scan_record") }}', {
+    method: 'POST',
+    body: formData
+  });
+
+  const data = await res.json();
+  toast.style.display = 'none';
+
+  if (!data.success) {
+    alert(data.error || 'Save failed');
+    return;
+  }
+
+  // ✅ Update KPIs
+  document.getElementById('scannedTotal').innerText = data.scanned_count;
+  document.getElementById('remainingQty').innerText = data.remaining;
+
+  // ✅ Remove "no records" placeholder if present
+  const noRecordsRow = document.getElementById('noRecordsRow');
+  if (noRecordsRow) noRecordsRow.remove();
+
+  // ✅ Append new record to table
+  const tbody = document.getElementById('recordsTableBody');
+  const newRow = document.createElement('tr');
+  newRow.className = 'hover:bg-gray-50';
+  newRow.innerHTML = `
+  <td class="p-2 border border-gray-300 text-center">${tbody.children.length + 1}</td>
+  <td class="p-2 border border-gray-300">
+    ${data.record.barcode_1 ? `<div>${data.record.barcode_1}</div>` : ''}
+    ${data.record.barcode_2 ? `<div>${data.record.barcode_2}</div>` : ''}
+    ${data.record.barcode_3 ? `<div>${data.record.barcode_3}</div>` : ''}
+  </td>
+  <td class="p-2 border border-gray-300 text-center">${data.record.created_on}</td>
+  <td class="p-2 border border-gray-300 text-center space-x-2">
+    <button
+      class="btn btn-primary"
+      style="padding: 0.3rem 0.6rem; font-size: 0.75rem;"
+      title="View Record"
+      onclick="openRecordModal(
+        '${data.record.barcode_1 || ''}',
+        '${data.record.barcode_2 || ''}',
+        '${data.record.barcode_3 || ''}',
+        '${data.record.created_on}',
+        '${data.record.image_url || ''}'
+      )"
+    >
+      VIEW
+    </button>
+    <button
+      class="btn btn-danger"
+      style="padding: 0.3rem 0.6rem; font-size: 0.75rem;"
+      title="Delete Record"
+      onclick="deleteRecord(${data.record.id}, this)"
+    >
+      DEL
+    </button>
+  </td>
+  `;
+  tbody.appendChild(newRow);
+
+  // ✅ Reset for next scan
+  previewImg.style.display = 'none';
+  barcode_1.value = '';
+  barcode_2.value = '';
+  barcode_3.value = '';
+  uploadedFile = null;
+
+  toast.innerText = '✅ Scan saved successfully';
+  toast.style.display = 'block';
+  setTimeout(() => toast.style.display = 'none', 2000);
+});
+  const lockOverlay = document.getElementById('lockOverlay');
+
+  async function raiseVariation(type) {
+    const remarks = document.getElementById('remarks').value;
+
+    const formData = new FormData();
+    formData.append('line_id', '{{ line.id }}');
+    formData.append('variation_type', type);
+    formData.append('remarks', remarks);
+
+    const res = await fetch('{{ url_for("counter.raise_variation") }}', {
+      method: 'POST',
+      body: formData
     });
 
-    // other existing JS (raise variation, delete record, modals, etc.) remains untouched
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.error || 'Failed to raise variation');
+      return;
+    }
+
+    alert(data.message);
+  }
+
+  document.getElementById('btnCountComplete').addEventListener('click', () => raiseVariation('count_completed'));
+  document.getElementById('btnAdditionalCount').addEventListener('click', () => raiseVariation('additional_required'));
+
+  async function deleteRecord(recordId) {
+  if (!confirm("Are you sure you want to delete this record?")) return;
+
+  const formData = new FormData();
+  formData.append("record_id", recordId);
+
+  const res = await fetch('{{ url_for("counter.delete_scan_record") }}', {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+
+  if (!data.success) {
+    alert(data.error || "Failed to delete record.");
+    return;
+  }
+
+  // Remove deleted row from the table
+  const row = document.querySelector(`button[onclick="deleteRecord(${recordId})"]`)?.closest("tr");
+  if (row) row.remove();
+
+  // If no rows left, add "no records" placeholder
+  const tbody = document.getElementById("recordsTableBody");
+  if (tbody.children.length === 0) {
+    tbody.innerHTML = `<tr id="noRecordsRow"><td colspan="4" class="p-4 text-center text-gray-500">No scan records found</td></tr>`;
+  }
+
+  alert("✅ Record deleted successfully.");
+}
+
   </script>
+
+ {% if line.is_locked %}
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const overlay = document.getElementById('lockOverlay');
+    if (overlay) {
+      overlay.style.display = 'flex';
+    }
+  });
+  
+  </script>
+  {% endif %}
+  <script>
+  const modal = document.getElementById("recordModal");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+
+  function openRecordModal(b1, b2, b3, date, imagePath) {
+    document.getElementById("modalbarcode_1").innerText = b1 || "-";
+    document.getElementById("modalbarcode_2").innerText = b2 || "-";
+    document.getElementById("modalbarcode_3").innerText = b3 || "-";
+    document.getElementById("modalDate").innerText = date || "-";
+
+    const img = document.getElementById("modalImage");
+    const imgContainer = document.getElementById("modalImageContainer");
+
+    if (imagePath && imagePath !== "None") {
+      img.src = imagePath
+      imgContainer.style.display = "block";
+      img.onerror = () => {
+      imgContainer.innerHTML = `
+        <p style="color:red; text-align:center; padding:1rem;">
+          Image link expired. Please refresh the page to generate a new one.
+        </p>`;
+    };
+    } else {
+      imgContainer.style.display = "none";
+    }
+
+    modal.style.display = "flex";
+  }
+
+  closeModalBtn.addEventListener("click", () => modal.style.display = "none");
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.style.display = "none"; });
+</script>
+
+  <!-- Lock Overlay -->
+  <div id="lockOverlay" 
+      style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9); z-index: 10000; 
+            align-items: center; justify-content: center;">
+    <div style="text-align: center; color: white; padding: 2rem;">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
+      <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">Job Locked</h2>
+      <p style="margin-bottom: 1.5rem;">Waiting for Team Leader approval...</p>
+      <div class="loading" style="margin: 0 auto;"></div>
+    </div>
+  </div>
 </body>
 {% endblock %}

@@ -3,7 +3,11 @@ import base64
 from PIL import Image
 import cv2
 import numpy as np
-from pyzbar.pyzbar import decode
+# ✅ Safe import guard for pyzbar
+try:
+    from pyzbar.pyzbar import decode
+except ImportError:
+    decode = None  #
 
 def process_barcode_image(image_data):
     """
