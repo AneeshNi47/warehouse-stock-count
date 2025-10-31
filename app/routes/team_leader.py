@@ -5,6 +5,7 @@ from app import db
 from app.constants.status import ScanLineStatus
 from flask import send_file
 import io
+from app.utils.s3_helper import generate_presigned_url
 from openpyxl import Workbook
 from datetime import datetime
 
@@ -83,7 +84,15 @@ def create_scan_line():
 @login_required
 def view_scan_line(id):
     line = ScanLine.query.get_or_404(id)
-    return render_template('team_leader_view_scan_line.html', line=line)
+
+    records = ScanRecord.query.filter_by(scan_line_id=line.id).all()
+    # Generate presigned URLs for each record image
+    for record in records:
+        if record.image_path:
+            record.image_url = generate_presigned_url(record.image_path)
+        else:
+            record.image_url = None
+    return render_template('team_leader_view_scan_line.html', line=line, scan_records=records)
 
 
 @bp.route('/scan_line/<int:id>/edit', methods=['GET', 'POST'])

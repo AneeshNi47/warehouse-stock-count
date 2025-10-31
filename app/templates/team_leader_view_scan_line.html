@@ -103,7 +103,7 @@
             </tr>
           </thead>
           <tbody>
-            {% for record in line.scan_records %}
+            {% for record in scan_records %}
             <tr id="row-{{ record.id }}"  class="hover:bg-gray-50">
               <td class="p-2 border-b">{{ loop.index }}</td>
               <td class="p-2 border-b">{{ record.barcode_1 or '-' }}</td>
@@ -151,9 +151,9 @@
 
       <h3 class="text-lg font-semibold mb-3 text-gray-800">Scan Record Details</h3>
       <div class="space-y-2 text-gray-700">
-        <p><strong>Barcode 1:</strong> <span id="modalBarcode1"></span></p>
-        <p><strong>Barcode 2:</strong> <span id="modalBarcode2"></span></p>
-        <p><strong>Barcode 3:</strong> <span id="modalBarcode3"></span></p>
+        <p><strong>MST/Factory:</strong> <span id="modalBarcode1"></span></p>
+        <p><strong>EAN:</strong> <span id="modalBarcode2"></span></p>
+        <p><strong>S/N:</strong> <span id="modalBarcode3"></span></p>
         <p><strong>Counter:</strong> <span id="modalCounter"></span></p>
         <p><strong>Date/Time:</strong> <span id="modalDate"></span></p>
         <div id="modalImageContainer" class="mt-3">
